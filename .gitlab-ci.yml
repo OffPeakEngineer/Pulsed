@@ -1,0 +1,121 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+stages:
+  - validate
+  - test
+  - build
+  - release
+
+default:
+  interruptible: true
+
+variables:
+  GIT_DEPTH: "0"
+  GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
+  GOMODCACHE: "$CI_PROJECT_DIR/.cache/go-mod"
+  GOTOOLCHAIN: "go1.25.11"
+  npm_config_cache: "$CI_PROJECT_DIR/.cache/npm"
+
+.go-cache:
+  cache:
+    key:
+      files:
+        - go.sum
+    paths:
+      - .cache/go-build/
+      - .cache/go-mod/
+
+.node-cache:
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .cache/npm/
+
+commitlint:
+  stage: validate
+  image: node:22-alpine
+  extends: .node-cache
+  before_script:
+    - apk add --no-cache git
+    - npm ci --prefer-offline
+  script:
+    - npm run audit
+    - |
+      if [ -n "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}" ]; then
+        commit_from="$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+      elif [ -n "${CI_COMMIT_BEFORE_SHA:-}" ] && [ "$CI_COMMIT_BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+        commit_from="$CI_COMMIT_BEFORE_SHA"
+      else
+        git log -1 --format=%B "$CI_COMMIT_SHA" | npx --no-install commitlint
+        exit 0
+      fi
+      echo "Checking commit range ${commit_from}..${CI_COMMIT_SHA}"
+      npx --no-install commitlint --from "$commit_from" --to "$CI_COMMIT_SHA"
+
+go-checks:
+  stage: test
+  image: golang:1.25.11-bookworm
+  extends: .go-cache
+  before_script:
+    - mkdir -p "$GOCACHE" "$GOMODCACHE" .ci
+  script:
+    - test -z "$(gofmt -s -l -- *.go)"
+    - go vet ./...
+    - go test -race -count=1 -coverprofile=.ci/coverage.out ./...
+    - go tool cover -func=.ci/coverage.out
+  coverage: '/total:\s+\(statements\)\s+([0-9.]+)%/'
+  artifacts:
+    when: always
+    name: "pulsed-checks-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - .ci/coverage.out
+    expire_in: 1 week
+
+build-binaries:
+  stage: build
+  image: golang:1.25.11-alpine
+  extends: .go-cache
+  needs:
+    - go-checks
+  before_script:
+    - mkdir -p "$GOCACHE" "$GOMODCACHE"
+  script:
+    - PULSED_VERSION="0.0.0-dev.${CI_COMMIT_SHORT_SHA}" sh deploy/release/build-all.sh
+  artifacts:
+    name: "pulsed-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - dist/
+    expire_in: 2 weeks
+
+release:
+  stage: release
+  image: node:22-alpine
+  interruptible: false
+  resource_group: pulsed-release
+  needs:
+    - commitlint
+    - go-checks
+    - job: build-binaries
+      artifacts: false
+  cache:
+    key:
+      files:
+        - go.sum
+        - package-lock.json
+    paths:
+      - .cache/go-build/
+      - .cache/go-mod/
+      - .cache/npm/
+  before_script:
+    - apk add --no-cache git go
+    - mkdir -p "$GOCACHE" "$GOMODCACHE"
+    - npm ci --prefer-offline
+  script:
+    - npm run release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'

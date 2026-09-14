@@ -3,6 +3,61 @@
 Build and release docs belong here: local builds, cross-compilation, release
 artifacts, CI, and packaging assumptions.
 
+## GitLab CI and releases
+
+`.gitlab-ci.yml` runs on merge requests and the default branch. It needs a Linux
+runner that supports container images; no custom runner tags are required.
+
+- `commitlint`: installs the lockfile with `npm ci`, audits high/critical npm
+  vulnerabilities, and lints the MR or push commit range. An initial pipeline
+  without a previous commit checks the current commit.
+- `go-checks`: checks formatting, runs `go vet` and race tests, and retains a
+  coverage profile. Coverage is reported without inheriting Ivy's 70% floor;
+  Pulsed's initial measured baseline is 45.0%.
+- `build-binaries`: cross-compiles Linux, macOS, and Windows for amd64 and arm64,
+  with CGO disabled, and retains binaries and checksums for two weeks. These
+  development artifacts use `0.0.0-dev.<commit>` as their embedded version.
+- `release`: runs only on the default branch after validation and all builds
+  pass. Semantic-release determines the next version from conventional commits,
+  rebuilds the binaries with that tag in `main.appVersion`, creates the GitLab
+  release, and uploads assets to the project's generic package registry. A
+  `pulsed-release` resource group serializes releases. This job is not interruptible.
+
+Go jobs and release builds use `GOTOOLCHAIN=go1.25.11`. The explicit pin avoids
+the existing `cockroachdb/swiss` incompatibility with the locally installed Go
+1.27 toolchain. The release container installs a Go launcher and downloads the
+pinned toolchain into its cache as needed. Node jobs use the Node 22 image and
+its bundled npm with the committed lockfile.
+
+Before the first release, configure a **masked, protected** `GL_TOKEN` CI/CD
+variable, protect the default branch, and enable the project's package registry.
+Use a project/group/personal access token with `api` and `write_repository`
+scopes and a role allowed to push release tags. Protected tag rules must allow
+that identity to create `v*` tags. No npm publishing token is needed.
+The token requirements follow the
+[@semantic-release/gitlab authentication documentation](https://github.com/semantic-release/gitlab#gitlab-authentication).
+
+Release links have stable asset paths such as
+`/-/releases/v1.2.3/downloads/pulsed-linux-amd64` and
+`/-/releases/permalink/latest/downloads/pulsed-linux-amd64`. The Ansible release
+installer uses these links. Download `checksums.sha256` alongside the binaries
+and run `sha256sum -c checksums.sha256` (or `shasum -a 256 -c checksums.sha256`).
+Private projects still require authentication for downloads.
+
+The former GitHub release workflow has been removed. The Go module path remains
+`github.com/OffPeakEngineer/pulsed`; changing the module's public import path is
+a separate compatibility decision.
+
+Validate pipeline structure without starting a pipeline:
+
+```sh
+glab ci lint .gitlab-ci.yml --include-jobs
+```
+
+Local race tests and cross-compilation do not establish that every target runs
+correctly on its native OS. Publication and token permissions are verified by
+the first real GitLab release job.
+
 ## Dashboard regression checks
 
 Run `go test ./...` and `go build ./...` using the Go 1.25 toolchain used by CI.

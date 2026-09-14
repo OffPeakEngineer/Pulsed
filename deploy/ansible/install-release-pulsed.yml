@@ -5,8 +5,8 @@
   vars:
     pulsed_version: latest
     pulsed_arch: "{{ 'arm64' if ansible_architecture in ['aarch64', 'arm64'] else 'amd64' }}"
-    pulsed_release_base_url: "https://github.com/OffPeakEngineer/pulsed/releases"
-    pulsed_release_url: "{{ pulsed_release_base_url }}/{{ 'latest/download' if pulsed_version == 'latest' else 'download/' ~ pulsed_version }}/pulsed-linux-{{ pulsed_arch }}"
+    pulsed_release_base_url: "https://gitlab.com/off-peak.engineer/utilities/pulsed/-/releases"
+    pulsed_release_url: "{{ pulsed_release_base_url }}/{{ 'permalink/latest' if pulsed_version == 'latest' else pulsed_version }}/downloads/pulsed-linux-{{ pulsed_arch }}"
     pulsed_http: ":8080"
     pulsed_advertise_http: "http://{{ ansible_default_ipv4.address }}:8080"
     pulsed_gossip: ":7946"

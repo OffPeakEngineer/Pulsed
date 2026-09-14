@@ -1,25 +1,37 @@
-const repositoryUrl = process.env.GITHUB_REPOSITORY
-  ? `https://github.com/${process.env.GITHUB_REPOSITORY}.git`
-  : 'https://github.com/OffPeakEngineer/pulsed.git';
+const repositoryUrl = process.env.CI_PROJECT_URL
+  ? `${process.env.CI_PROJECT_URL}.git`
+  : 'https://gitlab.com/off-peak.engineer/utilities/pulsed.git';
+
+const binaries = [
+  ['pulsed-linux-amd64', 'Linux amd64 binary'],
+  ['pulsed-linux-arm64', 'Linux arm64 binary'],
+  ['pulsed-darwin-amd64', 'macOS Intel binary'],
+  ['pulsed-darwin-arm64', 'macOS Apple Silicon binary'],
+  ['pulsed-windows-amd64.exe', 'Windows amd64 binary'],
+  ['pulsed-windows-arm64.exe', 'Windows arm64 binary'],
+  ['checksums.sha256', 'SHA-256 checksums']
+];
 
 module.exports = {
-  branches: ['main'],
+  branches: [process.env.CI_DEFAULT_BRANCH || 'main'],
   repositoryUrl,
   plugins: [
     '@semantic-release/commit-analyzer',
     '@semantic-release/release-notes-generator',
-    [
-      '@semantic-release/github',
-      {
-        assets: [
-          { path: 'dist/pulsed-linux-amd64', label: 'Linux amd64 binary' },
-          { path: 'dist/pulsed-linux-arm64', label: 'Linux arm64 binary' },
-          { path: 'dist/pulsed-darwin-amd64', label: 'macOS Intel binary' },
-          { path: 'dist/pulsed-darwin-arm64', label: 'macOS Apple Silicon binary' },
-          { path: 'dist/pulsed-windows-amd64.exe', label: 'Windows amd64 binary' },
-          { path: 'dist/pulsed-windows-arm64.exe', label: 'Windows arm64 binary' }
-        ]
-      }
-    ]
+    ['@semantic-release/exec', {
+      prepareCmd: 'PULSED_VERSION="${nextRelease.gitTag}" sh deploy/release/build-all.sh'
+    }],
+    ['@semantic-release/gitlab', {
+      successCommentCondition: false,
+      failCommentCondition: false,
+      assets: binaries.map(([name, label]) => ({
+        path: `dist/${name}`,
+        label,
+        type: 'package',
+        target: 'generic_package',
+        packageName: 'pulsed',
+        filepath: `/${name}`
+      }))
+    }]
   ]
 };

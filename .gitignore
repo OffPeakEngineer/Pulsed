@@ -35,3 +35,6 @@ go.work.sum
 pulsed
 dist/
 data/
+node_modules/
+.cache/
+.ci/

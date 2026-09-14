@@ -1,6 +1,6 @@
 # Pulsed
 
-[![CI](https://github.com/OffPeakEngineer/pulsed/actions/workflows/ci.yml/badge.svg)](https://github.com/OffPeakEngineer/pulsed/actions/workflows/ci.yml) [![Release](https://github.com/OffPeakEngineer/pulsed/actions/workflows/release.yml/badge.svg)](https://github.com/OffPeakEngineer/pulsed/actions/workflows/release.yml)
+[![CI](https://gitlab.com/off-peak.engineer/utilities/pulsed/badges/main/pipeline.svg)](https://gitlab.com/off-peak.engineer/utilities/pulsed/-/pipelines) [![Release](https://gitlab.com/off-peak.engineer/utilities/pulsed/-/badges/release.svg)](https://gitlab.com/off-peak.engineer/utilities/pulsed/-/releases)
 
 **Pulsed is a resilient cluster htop daemon.** Run it on a few machines, open any node in a browser, and watch the whole cluster from a server-rendered dashboard. If the node serving your browser gets busy, it can send the next refresh to a quieter peer.
 
@@ -211,4 +211,9 @@ pulsed uses peer-to-peer state sharing and a small local store internally, but t
 
 For fleet installs, prefer release binaries or a binary built once in CI over compiling on every host. This avoids distro Go version drift and keeps bare-metal installs simple.
 
-CI runs on GitHub-hosted Linux, Windows, and macOS runners for both x64 and arm64 where standard hosted runners are available. Releases publish matching Linux, macOS, and Windows binaries from `deploy/release/build-all.sh`.
+GitLab CI validates commits and npm tooling, checks formatting, runs Go vet and
+race tests with coverage on Linux, then cross-compiles Linux, macOS, and Windows
+binaries for amd64 and arm64. Releases publish those six binaries plus SHA-256
+checksums using `deploy/release/build-all.sh`. See
+[CI and release setup](docs/05_building/README.md#gitlab-ci-and-releases) for runner
+and token requirements.

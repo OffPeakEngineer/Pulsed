@@ -19,3 +19,15 @@ build darwin amd64
 build darwin arm64
 build windows amd64 .exe
 build windows arm64 .exe
+
+# Match the published assets exactly, even when dist already exists locally.
+(
+  cd dist
+  set -- pulsed-linux-amd64 pulsed-linux-arm64 pulsed-darwin-amd64 \
+    pulsed-darwin-arm64 pulsed-windows-amd64.exe pulsed-windows-arm64.exe
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$@" > checksums.sha256
+  else
+    shasum -a 256 "$@" > checksums.sha256
+  fi
+)
