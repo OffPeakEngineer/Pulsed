@@ -1,11 +1,125 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
+	"math"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestDashboardCoreBandsPreserveEveryCoreAndHotspots(t *testing.T) {
+	for _, count := range []int{0, 1, 8, 32, 33, 64, 192, 256, 1024, 2048} {
+		t.Run(fmt.Sprint(count), func(t *testing.T) {
+			cpus := make([]float64, count)
+			if count > 0 {
+				cpus[count-1] = 99
+			}
+			cell := dashboardCell(NodeStats{CPU: cpus, UpdatedAt: time.Now().UnixNano()})
+			if len(cell.Cores) != count || len(cell.Bands) != min(count, maxCoreBands) {
+				t.Fatalf("%d cores: got %d readings, %d bands", count, len(cell.Cores), len(cell.Bands))
+			}
+			next := 0
+			for _, band := range cell.Bands {
+				if band.First != next || band.Last < band.First {
+					t.Fatalf("gap or overlap: %+v after %d", band, next)
+				}
+				next = band.Last + 1
+			}
+			if next != count {
+				t.Fatalf("bands cover %d of %d cores", next, count)
+			}
+			if count > 0 && cell.Bands[len(cell.Bands)-1].Peak != 99 {
+				t.Fatal("hotspot lost in overview")
+			}
+		})
+	}
+}
+
+func TestDashboardMissingOfflineAndOutOfRangeMetrics(t *testing.T) {
+	cell := dashboardCell(NodeStats{UpdatedAt: time.Now().UnixNano(), CPU: []float64{-1, 150, math.NaN(), math.Inf(1)}})
+	for _, core := range cell.Cores {
+		if core.Percent < 0 || core.Percent > 100 || math.IsNaN(core.Percent) || math.IsInf(core.Percent, 0) {
+			t.Fatalf("invalid meter: %+v", core)
+		}
+	}
+	if cell.MemPct != 0 {
+		t.Fatal("missing memory is not zero-safe")
+	}
+	cell = dashboardCell(NodeStats{CPU: []float64{99}})
+	if len(cell.Cores) != 0 || len(cell.Bands) != 0 || cell.AgeLabel != "No heartbeat available" {
+		t.Fatalf("offline node exposes old core readings: %+v", cell)
+	}
+}
+
+func TestDashboardResponsiveFixtures(t *testing.T) {
+	now := time.Now()
+	var nodes []cellData
+	for i, count := range []int{4, 192, 8, 64, 256, 1024, 0, 16, 32, 2, 48, 128} {
+		stats := NodeStats{Name: fmt.Sprintf("rack-%02d", i+1), CPU: make([]float64, count), MemUsed: uint64(i+1) * 8 << 30, MemTotal: 128 << 30, UpdatedAt: now.UnixNano(), Version: appVersion, Load: [3]float64{float64(i) * 1.4, 0.4, 0.6}}
+		for j := range stats.CPU {
+			stats.CPU[j] = float64((j*13 + i*7) % 101)
+		}
+		if i == 0 {
+			stats.Name = "edge-01"
+		}
+		if i == 1 {
+			stats.Name = "compute-192"
+		}
+		if i == 5 {
+			stats.Name = "large-host-1024-with-a-very-long-name.cluster.internal"
+		}
+		if i == 6 {
+			stats.MemTotal = 0
+		}
+		if i == 8 {
+			stats.UpdatedAt = now.Add(-10 * time.Second).UnixNano()
+		}
+		if i == 9 {
+			stats.UpdatedAt = 0
+		}
+		nodes = append(nodes, dashboardCell(stats))
+	}
+	var buf bytes.Buffer
+	err := pageTmpl.Execute(&buf, pageData{Nodes: nodes, Theme: "dark", Palette: "monochrome", RefreshMs: 3000, RefreshLabel: "3.0s", RefreshURL: "/dashboard.html?theme=dark&palette=monochrome", BestHint: "Preview · synthetic mixed-hardware cluster", Summary: clusterSummary{Fresh: 10, Stale: 1, Offline: 1, HasHot: true, Hottest: "compute-192", HotCPU: 49, HotLoad: 1.4}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := buf.String()
+	if strings.Contains(body, "ZgotmplZ") {
+		t.Fatal("template produced unsafe value placeholder")
+	}
+	if !strings.Contains(body, "Inspect 1024 logical CPUs") || !strings.Contains(body, "CPU 1023 usage") {
+		t.Fatal("high-core detail truncated")
+	}
+	if strings.Contains(body, "<pre>") || strings.Contains(body, "location.replace('?'") {
+		t.Fatal("legacy layout still active")
+	}
+	if dir := os.Getenv("PULSED_PREVIEW_DIR"); dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "dashboard.html"), buf.Bytes(), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestDashboardRefreshKeepsProxyRoute(t *testing.T) {
+	db := openTestDB(t)
+	rr := httptest.NewRecorder()
+	makeHandler(db, "node-a").ServeHTTP(rr, httptest.NewRequest("GET", "/dashboard?pulsed_node=node-a&theme=light", nil))
+	if rr.Code != 200 {
+		t.Fatalf("status %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), `/dashboard?pulsed_node=node-a`) {
+		t.Fatal("refresh lost the proxy route")
+	}
+}
 
 func TestDashboardDoesNotLinkNodesWithoutWebURL(t *testing.T) {
 	db := openTestDB(t)

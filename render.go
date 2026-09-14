@@ -13,7 +13,6 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
-	"github.com/robert-nix/ansihtml"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/load"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -252,31 +251,8 @@ func fmtBytes(b uint64) string {
 	return fmt.Sprintf("%.1f%ciB", float64(b)/float64(div), "KMGTPE"[exp])
 }
 
-// ── Layout ────────────────────────────────────────────────────────────────────
+// ── Dashboard metrics ─────────────────────────────────────────────────────────
 
-type layoutParams struct {
-	CellWidth float64
-	FontSize  float64
-}
-
-func computeLayout(nodeCount, winW, winH int) layoutParams {
-	if nodeCount == 0 {
-		nodeCount = 1
-	}
-	aspect := 16.0 / 9.0
-	if winW > 0 && winH > 0 {
-		aspect = float64(winW) / float64(winH)
-	}
-	cols := int(math.Round(math.Sqrt(float64(nodeCount) * aspect)))
-	if cols < 1 {
-		cols = 1
-	}
-	if cols > nodeCount {
-		cols = nodeCount
-	}
-	cw := 100.0 / float64(cols)
-	return layoutParams{CellWidth: cw, FontSize: cw * 0.016}
-}
 func avgCPU(s NodeStats) float64 {
 	if len(s.CPU) == 0 {
 		return 0
@@ -473,39 +449,117 @@ func normalizePageBase(base string) string {
 	return parsed.String()
 }
 
-func displayQuery(r *http.Request, winW, winH int) url.Values {
+func displayQuery(r *http.Request) url.Values {
 	values := url.Values{}
 	for _, key := range []string{"theme", "palette"} {
 		if value := r.URL.Query().Get(key); value != "" {
 			values.Set(key, value)
 		}
 	}
-	values.Set("w", fmt.Sprintf("%d", winW))
-	values.Set("h", fmt.Sprintf("%d", winH))
 	return values
 }
 
 // ── HTTP handler ──────────────────────────────────────────────────────────────
 
+// The overview has at most 32 bands. Each band's peak preserves hotspots that
+// would disappear in an average; the expanded panel retains every logical CPU.
+const maxCoreBands = 32
+
+type coreData struct {
+	Index   int
+	Percent float64
+}
+
+type coreBand struct {
+	First, Last int
+	Peak        float64
+	Level       string
+}
+
+func metricPercent(value float64) float64 {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0
+	}
+	return math.Max(0, math.Min(100, value))
+}
+
+func cpuLevel(value float64) string {
+	if value > 80 {
+		return "high"
+	}
+	if value > 55 {
+		return "medium"
+	}
+	return "low"
+}
+
+func dashboardCell(s NodeStats) cellData {
+	health := nodeHealth(s)
+	cell := cellData{
+		Name: s.Name, State: health.State, CoreCount: len(s.CPU),
+		CPUAvg: metricPercent(avgCPU(s)), CPUMax: metricPercent(maxCPU(s)),
+		MemUsed: s.MemUsed, MemTotal: s.MemTotal,
+		MemLabel: fmtBytes(s.MemUsed) + " / " + fmtBytes(s.MemTotal),
+		Load1:    s.Load[0], Load5: s.Load[1], Load15: s.Load[2],
+		Age: math.Max(0, health.Age.Seconds()), Version: nodeVersionLabel(s),
+		StatusLabel: string(health.State),
+	}
+	if health.State == healthFresh {
+		cell.StatusLabel = "online"
+	}
+	cell.AgeLabel = fmt.Sprintf("Updated %.0fs ago", cell.Age)
+	if s.UpdatedAt == 0 {
+		cell.AgeLabel = "No heartbeat available"
+	}
+	if s.MemTotal > 0 {
+		cell.MemPct = metricPercent(float64(s.MemUsed) / float64(s.MemTotal) * 100)
+	}
+	if health.State == healthOffline {
+		return cell
+	}
+	for i, percent := range s.CPU {
+		percent = metricPercent(percent)
+		cell.Cores = append(cell.Cores, coreData{i, percent})
+	}
+	// Contiguous, near-equal groups bound overview size at any core count.
+	count := min(len(cell.Cores), maxCoreBands)
+	for i := 0; i < count; i++ {
+		first, end := i*len(cell.Cores)/count, (i+1)*len(cell.Cores)/count
+		peak := 0.0
+		for _, core := range cell.Cores[first:end] {
+			peak = math.Max(peak, core.Percent)
+		}
+		cell.Bands = append(cell.Bands, coreBand{first, end - 1, peak, cpuLevel(peak)})
+	}
+	return cell
+}
+
 type cellData struct {
-	Name     string
-	URL      string
-	HTML     template.HTML
-	State    healthState
-	CPUAvg   float64
-	CPUMax   float64
-	MemPct   float64
-	MemUsed  uint64
-	MemTotal uint64
-	Load1    float64
-	Load5    float64
-	Load15   float64
-	Age      float64
-	Link     bool
+	Name        string
+	URL         string
+	Cores       []coreData
+	Bands       []coreBand
+	CoreCount   int
+	MemLabel    string
+	Version     string
+	StatusLabel string
+	AgeLabel    string
+	State       healthState
+	CPUAvg      float64
+	CPUMax      float64
+	MemPct      float64
+	MemUsed     uint64
+	MemTotal    uint64
+	Load1       float64
+	Load5       float64
+	Load15      float64
+	Age         float64
+	Link        bool
 }
 
 type pageData struct {
-	Layout       layoutParams
+	Theme        string
+	Palette      string
 	Nodes        []cellData
 	RefreshMs    int
 	RefreshLabel string
@@ -516,59 +570,34 @@ type pageData struct {
 
 func makeHandler(db *pebble.DB, selfName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		winW, winH := 0, 0
-		fmt.Sscanf(r.URL.Query().Get("w"), "%d", &winW)
-		fmt.Sscanf(r.URL.Query().Get("h"), "%d", &winH)
-
 		nodes, err := dbScanAll(db)
 		if err != nil {
 			http.Error(w, "db error", 500)
 			return
 		}
 
-		layout := computeLayout(len(nodes), winW, winH)
 		cells := make([]cellData, 0, len(nodes))
 		for _, s := range nodes {
-			htmlBytes := ansihtml.ConvertToHTML([]byte(renderANSI(s)))
-			health := nodeHealth(s)
-			nodeURL := ""
+			cell := dashboardCell(s)
 			if s.WebURL != "" {
-				nodeURL = pageURL(s.WebURL, displayQuery(r, winW, winH))
+				cell.URL = pageURL(s.WebURL, displayQuery(r))
+				cell.Link = true
 			}
-			memPct := 0.0
-			if s.MemTotal > 0 {
-				memPct = float64(s.MemUsed) / float64(s.MemTotal) * 100
-			}
-
-			cells = append(cells, cellData{
-				Name:     s.Name,
-				URL:      nodeURL,
-				HTML:     template.HTML(htmlBytes),
-				State:    health.State,
-				CPUAvg:   avgCPU(s),
-				CPUMax:   maxCPU(s),
-				MemPct:   memPct,
-				MemUsed:  s.MemUsed,
-				MemTotal: s.MemTotal,
-				Load1:    s.Load[0],
-				Load5:    s.Load[1],
-				Load15:   s.Load[2],
-				Age:      health.Age.Seconds(),
-				Link:     nodeURL != "",
-			})
+			cells = append(cells, cell)
 		}
 
 		refreshMs := computeRefreshIntervalMs(nodes)
 		bestHint := findBestNodeHint(nodes)
-		refreshValues := displayQuery(r, winW, winH)
-		refreshURL := pageURL("/", refreshValues)
+		refreshValues := displayQuery(r)
+		refreshURL := pageURL(r.URL.RequestURI(), refreshValues)
 		if redirectNode := findLowerLoadRedirect(nodes, selfName); redirectNode != nil {
 			refreshURL = pageURL(redirectNode.WebURL, refreshValues)
 		}
 
 		var buf bytes.Buffer
 		if err := pageTmpl.Execute(&buf, pageData{
-			Layout:       layout,
+			Theme:        r.URL.Query().Get("theme"),
+			Palette:      r.URL.Query().Get("palette"),
 			Nodes:        cells,
 			RefreshMs:    refreshMs,
 			RefreshLabel: fmt.Sprintf("%.1fs", float64(refreshMs)/1000),

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="{{.Theme}}" data-palette="{{.Palette}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>pulsed</title>
+<title>pulsed · cluster pulse</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -206,243 +206,310 @@
   --toolbar-border: #ffffff;
 }
 body {
-  background: var(--bg);
-  color: var(--text);
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 6px;
-  padding: 6px;
-  min-height: 100vh;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding: clamp(12px, 2vw, 28px); font-variant-numeric: tabular-nums;
 }
-.toolbar {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  background: var(--toolbar);
-  border: 1px solid var(--toolbar-border);
-  border-radius: 8px;
+a { color: var(--accent); }
+button, select, input { font: inherit; }
+button, select, input[type="search"] {
+  color: var(--text); background: var(--surface-alt); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px; min-height: 40px; max-width: 100%;
 }
-.toolbar .group {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
+button, select, summary { cursor: pointer; }
+button:hover, select:hover { border-color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+[hidden] { display: none !important; }
+.masthead, .toolbar, .group, .summary, .cell-header, .metric-heading, .section-heading {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
 }
-.summary {
-  color: var(--muted);
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
+.masthead { justify-content: space-between; margin-bottom: 22px; }
+h1 { font-size: 26px; letter-spacing: -1.5px; line-height: 1.2; }
+h1::before { content: '▰ '; color: var(--fresh); }
+.eyebrow, .muted, .age, .metric-label, .section-heading { color: var(--muted); }
+.eyebrow { font-size: 12px; margin-top: 5px; }
+.summary { padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 18px; gap: 10px 22px; }
+.fresh .status, .summary .fresh { color: var(--fresh); }
+.stale .status, .summary .stale { color: var(--stale); }
+.offline .status, .summary .offline { color: var(--offline); }
+.hot-node { overflow-wrap: anywhere; }
+.toolbar { align-items: flex-start; justify-content: space-between; margin-bottom: 22px; }
+.toolbar > div { flex: 1 1 580px; min-width: 0; }
+.group { gap: 8px 12px; }
+.control { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
+.control select, .control input { font-size: 13px; }
+.search-control { flex: 1 1 200px; max-width: 360px; }
+.search-control input { width: 100%; }
+.view-controls { flex: 1 1 440px; align-items: end; }
+.display-controls { padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; }
+.display-controls summary { color: var(--muted); }
+.display-controls .group { margin-top: 12px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+.filters label { display: flex; align-items: center; gap: 7px; min-height: 32px; }
+.section-heading { justify-content: space-between; font-size: 12px; margin-bottom: 10px; }
+.section-heading h2 { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; }
+.nodes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 14px; align-items: start; }
+.cell { min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.cell:has(.core-details[open]) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.cell.stale { border-top: 2px solid var(--stale); }
+.cell.offline { border-top: 2px solid var(--offline); }
+.cell-header { justify-content: space-between; align-items: flex-start; gap: 6px 10px; }
+.cell-header h3 { font-size: 15px; min-width: 0; overflow-wrap: anywhere; flex: 1 1 160px; }
+.cell-header a, .node-name { color: var(--accent); text-decoration: none; font-weight: 700; }
+.cell-header a:hover { text-decoration: underline; }
+.status { font-size: 11px; display: inline-flex; align-items: center; gap: 6px; }
+.status::before { content: '●'; font-size: 9px; }
+.age { font-size: 11px; margin-top: 5px; }
+.metric { margin-top: 18px; }
+.metric-heading { justify-content: space-between; gap: 4px; font-size: 12px; }
+.metric-heading strong { font-size: 21px; font-weight: 500; line-height: 1.2; }
+.metric-heading small { color: var(--muted); font-size: 12px; }
+meter { display: block; width: 100%; height: 9px; margin-top: 8px; background: var(--surface-alt); border-radius: 0; border: 0; }
+meter::-webkit-meter-bar { background: var(--surface-alt); border: 0; border-radius: 0; }
+meter::-webkit-meter-optimum-value { background: var(--fresh); }
+meter::-webkit-meter-suboptimum-value { background: var(--stale); }
+meter::-webkit-meter-even-less-good-value { background: var(--offline); }
+meter::-moz-meter-bar { background: var(--fresh); }
+.metric-note { margin-top: 7px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.core-map { display: flex; gap: 3px; height: 18px; margin-top: 12px; }
+.core-band { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--fresh); opacity: .65; }
+.core-band.medium { background: var(--stale); opacity: .85; }
+.core-band.high { background: var(--offline); opacity: 1; }
+.load { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; border-top: 1px solid var(--border); margin-top: 18px; padding-top: 12px; }
+.load dt { font-size: 10px; color: var(--muted); }
+.load dd { font-size: 15px; margin-top: 4px; overflow-wrap: anywhere; }
+.core-details { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 12px; }
+.core-details summary { color: var(--accent); font-size: 12px; padding: 3px 0; }
+.core-scroll { max-height: 280px; overflow: auto; overscroll-behavior: contain; margin-top: 12px; padding: 4px; scrollbar-gutter: stable; }
+.core-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 12px; }
+.core-reading { font-size: 11px; }
+.core-reading .metric-heading { font-size: 11px; }
+.core-reading meter { height: 6px; margin-top: 4px; }
+.version { color: var(--muted); font-size: 10px; margin-top: 14px; overflow-wrap: anywhere; }
+.offline-note, .empty { color: var(--muted); padding: 24px 0; }
+.empty { text-align: center; border: 1px dashed var(--border); border-radius: 8px; }
+footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: anywhere; }
+:root[data-density='compact'] .nodes { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+:root[data-density='compact'] .cell { padding: 12px; }
+:root[data-density='compact'] .metric { margin-top: 12px; }
+:root[data-density='compact'] .core-map, :root[data-density='compact'] .map-note { display: none; }
+@media (max-width: 480px) {
+  body { font-size: 13px; }
+  .masthead { align-items: flex-start; gap: 16px; }
+  .masthead .group { gap: 8px; }
+  .cell { padding: 14px; }
+  .toolbar > div, .display-controls { width: 100%; }
+  .search-control { max-width: none; flex-basis: 100%; }
 }
-.summary strong { color: var(--text); }
-.summary .fresh { color: var(--fresh); }
-.summary .stale { color: var(--stale); }
-.summary .offline { color: var(--offline); }
-.nodes {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 6px;
-}
-.toolbar label {
-  font-size: 0.95rem;
-  color: var(--muted);
-}
-button, select, .link-button {
-  font: inherit;
-  color: var(--text);
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 11px;
-  text-decoration: none;
-}
-button:hover, select:hover, .link-button:hover {
-  border-color: var(--accent);
-}
-button:focus, select:focus, .link-button:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.cell {
-  font-family: 'Courier New', Courier, monospace;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: {{printf "%.3f" .Layout.FontSize}}vw;
-  width: calc({{printf "%.3f" .Layout.CellWidth}}vw - 8px);
-  overflow: hidden;
-}
-.cell-header {
-  margin-bottom: 8px;
-}
-.cell-header a,
-.cell-header .node-name {
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 700;
-}
-.cell-header a:hover {
-  text-decoration: underline;
-}
-.cell.stale { border-color: var(--stale); }
-.cell.offline { opacity: 0.55; border-color: var(--offline); }
-pre { line-height: 1.4; white-space: pre; color: var(--text); }
 </style>
 <script>
 (function() {
+  // URL fragments carry view state across peer origins without sending it to the daemon.
   const params = new URLSearchParams(location.search);
-  const storedTheme = localStorage.getItem('pulsed-theme') || 'dark';
-  const storedPalette = localStorage.getItem('pulsed-palette') || 'monochrome';
-  const theme = params.get('theme') || storedTheme;
-  const palette = params.get('palette') || storedPalette;
-  const refreshMs = {{.RefreshMs}};
-  const storedSort = localStorage.getItem('pulsed-sort') || 'name';
-  const storedHideStale = localStorage.getItem('pulsed-hide-stale') === 'true';
-  const storedHideOffline = localStorage.getItem('pulsed-hide-offline') === 'true';
-
+  const read = (key, fallback) => { try { return localStorage.getItem('pulsed-' + key) || fallback; } catch { return fallback; } };
+  const write = (key, value) => { try { localStorage.setItem('pulsed-' + key, value); } catch {} };
+  let restored = {};
+  try { if (location.hash.startsWith('#view=')) restored = JSON.parse(decodeURIComponent(location.hash.slice(6))); } catch {}
+  if (!restored || typeof restored !== 'object' || Array.isArray(restored)) restored = {};
+  const allowed = (value, values, fallback) => values.includes(value) ? value : fallback;
+  let theme = allowed(params.get('theme') || read('theme', 'dark'), ['dark', 'light'], 'dark');
+  let palette = params.get('palette') || read('palette', 'monochrome');
+  let paused = restored.paused === true;
+  let timer;
   document.documentElement.dataset.theme = theme;
   document.documentElement.dataset.palette = palette;
-  localStorage.setItem('pulsed-theme', theme);
-  localStorage.setItem('pulsed-palette', palette);
-
-  if (!params.has('w') || !params.has('h') || params.get('theme') !== theme || params.get('palette') !== palette) {
-    params.set('w', window.innerWidth);
-    params.set('h', window.innerHeight);
-    params.set('theme', theme);
-    params.set('palette', palette);
-    location.replace('?' + params.toString());
-    return;
-  }
-
-  function updateQuery(key, value) {
-    params.set(key, value);
-    params.set('theme', document.documentElement.dataset.theme);
-    params.set('palette', document.documentElement.dataset.palette);
-    location.replace('?' + params.toString());
-  }
-
-  window.pulsed = {
-    switchTheme(themeValue) {
-      document.documentElement.dataset.theme = themeValue;
-      localStorage.setItem('pulsed-theme', themeValue);
-      updateQuery('theme', themeValue);
-    },
-    switchPalette(paletteValue) {
-      document.documentElement.dataset.palette = paletteValue;
-      localStorage.setItem('pulsed-palette', paletteValue);
-      updateQuery('palette', paletteValue);
-    },
-    applyDashboardControls() {
-      const sortSelect = document.getElementById('sort-select');
-      const hideStale = document.getElementById('hide-stale');
-      const hideOffline = document.getElementById('hide-offline');
-      const nodes = document.getElementById('nodes');
-      if (!sortSelect || !hideStale || !hideOffline || !nodes) return;
-
-      localStorage.setItem('pulsed-sort', sortSelect.value);
-      localStorage.setItem('pulsed-hide-stale', hideStale.checked ? 'true' : 'false');
-      localStorage.setItem('pulsed-hide-offline', hideOffline.checked ? 'true' : 'false');
-
-      const cards = Array.from(nodes.querySelectorAll('.cell'));
-      const sortKey = sortSelect.value;
-      cards.sort((a, b) => {
-        if (sortKey === 'name') return a.dataset.name.localeCompare(b.dataset.name);
-        return Number(b.dataset[sortKey] || 0) - Number(a.dataset[sortKey] || 0);
-      });
-      for (const card of cards) {
-        const state = card.dataset.state;
-        card.hidden = (hideStale.checked && state === 'stale') || (hideOffline.checked && state === 'offline');
-        nodes.appendChild(card);
-      }
-    }
-  };
 
   window.addEventListener('DOMContentLoaded', () => {
-    const themeSelect = document.getElementById('theme-select');
-    const paletteSelect = document.getElementById('palette-select');
-    const sortSelect = document.getElementById('sort-select');
-    const hideStale = document.getElementById('hide-stale');
-    const hideOffline = document.getElementById('hide-offline');
-    if (themeSelect) themeSelect.value = theme;
-    if (paletteSelect) paletteSelect.value = palette;
-    if (sortSelect) sortSelect.value = storedSort;
-    if (hideStale) hideStale.checked = storedHideStale;
-    if (hideOffline) hideOffline.checked = storedHideOffline;
-    window.pulsed.applyDashboardControls();
-  });
+    const byId = id => document.getElementById(id);
+    const nodes = byId('nodes');
+    const cards = Array.from(nodes.querySelectorAll('.cell'));
+    const sort = byId('sort-select');
+    const search = byId('node-search');
+    const density = byId('density-select');
+    const stale = byId('hide-stale');
+    const offline = byId('hide-offline');
+    const themeSelect = byId('theme-select');
+    const paletteSelect = byId('palette-select');
+    const display = byId('display-controls');
+    const pause = byId('pause-refresh');
+    const restoreSelect = (el, value, fallback) => { el.value = value; if (!el.value) el.value = fallback; };
+    restoreSelect(sort, restored.sort || read('sort', 'name'), 'name');
+    restoreSelect(density, restored.density || read('density', 'comfortable'), 'comfortable');
+    restoreSelect(themeSelect, theme, 'dark');
+    restoreSelect(paletteSelect, palette, 'monochrome');
+    theme = themeSelect.value; palette = paletteSelect.value;
+    document.documentElement.dataset.palette = palette;
+    search.value = typeof restored.search === 'string' ? restored.search : '';
+    stale.checked = typeof restored.stale === 'boolean' ? restored.stale : read('hide-stale', 'false') === 'true';
+    offline.checked = typeof restored.offline === 'boolean' ? restored.offline : read('hide-offline', 'false') === 'true';
+    display.open = restored.display === true;
 
-  setTimeout(() => location.replace({{.RefreshURL}}), refreshMs);
+    function applyControls() {
+      const query = search.value.toLocaleLowerCase().trim();
+      cards.sort((a, b) => sort.value === 'name'
+        ? a.dataset.name.localeCompare(b.dataset.name)
+        : Number(b.dataset[sort.value]) - Number(a.dataset[sort.value]) || a.dataset.name.localeCompare(b.dataset.name));
+      let visible = 0;
+      for (const card of cards) {
+        const coreScroll = card.querySelector('.core-scroll');
+        const scrollTop = coreScroll ? coreScroll.scrollTop : 0;
+        card.hidden = !card.dataset.name.toLocaleLowerCase().includes(query)
+          || (stale.checked && card.dataset.state === 'stale')
+          || (offline.checked && card.dataset.state === 'offline');
+        if (!card.hidden) visible++;
+        nodes.appendChild(card);
+        if (coreScroll) coreScroll.scrollTop = scrollTop;
+      }
+      byId('visible-count').textContent = visible + ' of ' + cards.length + ' nodes';
+      byId('empty-state').hidden = visible !== 0;
+      document.documentElement.dataset.density = density.value;
+      write('sort', sort.value); write('density', density.value);
+      write('hide-stale', String(stale.checked)); write('hide-offline', String(offline.checked));
+    }
+    for (const control of [sort, density, stale, offline]) control.addEventListener('change', applyControls);
+    search.addEventListener('input', applyControls);
+    byId('reset-filters').addEventListener('click', () => { search.value = ''; stale.checked = false; offline.checked = false; applyControls(); search.focus(); });
+    for (const select of [themeSelect, paletteSelect]) select.addEventListener('change', () => {
+      theme = themeSelect.value; palette = paletteSelect.value;
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.dataset.palette = palette;
+      write('theme', theme); write('palette', palette);
+    });
+    applyControls();
+
+    const expanded = Array.isArray(restored.expanded) ? restored.expanded : [];
+    for (const card of cards) {
+      const details = card.querySelector('.core-details');
+      const saved = expanded.find(item => item && item.name === card.dataset.name);
+      if (details && saved) { details.open = true; card.querySelector('.core-scroll').scrollTop = Number(saved.scroll) || 0; }
+    }
+    function viewState() {
+      const active = document.activeElement;
+      const card = active && active.closest('.cell');
+      const keyboardFocus = active && active.matches(':focus-visible');
+      return {
+        sort: sort.value, search: search.value, density: density.value,
+        stale: stale.checked, offline: offline.checked, paused, display: display.open,
+        scroll: window.scrollY,
+        focus: keyboardFocus ? active.id : null,
+        focusNode: keyboardFocus && card ? card.dataset.name : null,
+        focusPart: active && active.matches('summary') ? 'summary' : active && active.matches('.core-scroll') ? '.core-scroll' : 'a',
+        expanded: cards.filter(card => card.querySelector('.core-details[open]')).map(card => ({name: card.dataset.name, scroll: card.querySelector('.core-scroll').scrollTop}))
+      };
+    }
+    function destination(base) {
+      const url = new URL(base, location.href);
+      url.searchParams.set('theme', theme); url.searchParams.set('palette', palette);
+      url.hash = 'view=' + encodeURIComponent(JSON.stringify(viewState()));
+      return url.href;
+    }
+    function navigate(base) {
+      const target = new URL(destination(base));
+      // Changing only a fragment does not request fresh server-rendered metrics.
+      if (target.origin === location.origin && target.pathname === location.pathname && target.search === location.search) {
+        history.replaceState(null, '', target.href);
+        location.reload();
+      } else {
+        location.replace(target.href);
+      }
+    }
+    for (const link of nodes.querySelectorAll('.cell-header a')) {
+      const base = link.href;
+      const update = () => { link.href = destination(base); };
+      link.addEventListener('click', update); link.addEventListener('auxclick', update);
+    }
+    function schedule() {
+      clearTimeout(timer);
+      if (paused) return;
+      timer = setTimeout(() => {
+        // Let an active keyboard interaction finish before replacing the document.
+        if (document.hidden || document.activeElement.matches('input, select, button:focus-visible, summary:focus-visible, .core-scroll:focus-visible, a:focus-visible')) { schedule(); return; }
+        navigate({{.RefreshURL}});
+      }, {{.RefreshMs}});
+    }
+    function showRefresh() {
+      pause.textContent = paused ? 'Resume refresh' : 'Pause refresh';
+      pause.setAttribute('aria-pressed', String(paused));
+      byId('refresh-state').textContent = paused ? 'Refresh paused' : 'Auto-refresh {{.RefreshLabel}}';
+      schedule();
+    }
+    pause.addEventListener('click', () => { paused = !paused; showRefresh(); });
+    document.addEventListener('focusout', schedule);
+    byId('refresh-now').addEventListener('click', () => navigate(location.href));
+    requestAnimationFrame(() => {
+      let focusTarget = typeof restored.focus === 'string' ? byId(restored.focus) : null;
+      const focusCard = cards.find(card => card.dataset.name === restored.focusNode && !card.hidden);
+      if (focusCard) focusTarget = focusCard.querySelector(allowed(restored.focusPart, ['summary', '.core-scroll', 'a'], 'summary'));
+      if (focusTarget) focusTarget.focus({preventScroll: true});
+      window.scrollTo(0, Number(restored.scroll) || 0);
+    });
+    showRefresh();
+  });
 })();
 </script>
 </head>
 <body>
-<div class="toolbar">
-  <div class="group">
-    <strong style="color: var(--text)">Display</strong>
-    <label for="theme-select">Theme</label>
-    <select id="theme-select" onchange="window.pulsed.switchTheme(this.value)">
-      <option value="dark">Dark</option>
-      <option value="light">Light</option>
-    </select>
-    <label for="palette-select">Color</label>
-    <select id="palette-select" onchange="window.pulsed.switchPalette(this.value)">
-      <option value="monochrome">Monochrome</option>
-      <option value="solarized">Solarized</option>
-      <option value="tango">Tango</option>
-      <option value="nord">Nord</option>
-      <option value="gruvbox">Gruvbox</option>
-      <option value="dracula">Dracula</option>
-      <option value="catppuccin">Catppuccin</option>
-      <option value="everforest">Everforest</option>
-      <option value="midnight">Midnight</option>
-      <option value="matrix">Matrix</option>
-      <option value="amber">Amber</option>
-      <option value="paper">Paper</option>
-      <option value="contrast">High Contrast</option>
-    </select>
-  </div>
-  <div class="group">
-    <label for="sort-select">Sort</label>
-    <select id="sort-select" onchange="window.pulsed.applyDashboardControls()">
-      <option value="name">Name</option>
-      <option value="cpuAvg">CPU avg</option>
-      <option value="cpuMax">CPU max</option>
-      <option value="memPct">Memory %</option>
-      <option value="memUsed">Memory used</option>
-      <option value="memTotal">Memory total</option>
-      <option value="load1">Load 1m</option>
-      <option value="load5">Load 5m</option>
-      <option value="load15">Load 15m</option>
-      <option value="age">Age</option>
-    </select>
-    <label><input id="hide-stale" type="checkbox" onchange="window.pulsed.applyDashboardControls()"> Hide stale</label>
-    <label><input id="hide-offline" type="checkbox" onchange="window.pulsed.applyDashboardControls()"> Hide offline</label>
-  </div>
-  <div class="summary">
-    <strong>Cluster</strong>
-    <span class="fresh">online {{.Summary.Fresh}}</span>
-    <span class="stale">stale {{.Summary.Stale}}</span>
-    <span class="offline">offline {{.Summary.Offline}}</span>
-    {{if .Summary.HasHot}}<span>hottest {{.Summary.Hottest}} {{printf "%.0f" .Summary.HotCPU}}% CPU {{printf "%.2f" .Summary.HotLoad}} load</span>{{else}}<span>hottest none</span>{{end}}
-    <span>Auto-refresh {{.RefreshLabel}} · {{.BestHint}}</span>
-  </div>
+<header class="masthead">
+  <div><h1>pulsed</h1><p class="eyebrow">The pulse of your cluster.</p></div>
+  <div class="group"><span id="refresh-state" class="muted">Auto-refresh {{.RefreshLabel}}</span><button id="pause-refresh" type="button" aria-pressed="false">Pause refresh</button><button id="refresh-now" type="button">Refresh now</button></div>
+</header>
+<div class="summary" aria-label="Cluster health">
+  <span class="fresh">online {{.Summary.Fresh}}</span><span class="stale">stale {{.Summary.Stale}}</span><span class="offline">offline {{.Summary.Offline}}</span>
+  {{if .Summary.HasHot}}<span class="hot-node muted">hottest <strong>{{.Summary.Hottest}}</strong> · {{printf "%.0f" .Summary.HotCPU}}% CPU · {{printf "%.2f" .Summary.HotLoad}} load</span>{{else}}<span class="muted">No fresh nodes yet</span>{{end}}
 </div>
-<div id="nodes" class="nodes">
-{{range .Nodes}}
-<div class="cell {{.State}}" data-name="{{.Name}}" data-state="{{.State}}" data-cpu-avg="{{printf "%.3f" .CPUAvg}}" data-cpu-max="{{printf "%.3f" .CPUMax}}" data-mem-pct="{{printf "%.3f" .MemPct}}" data-mem-used="{{.MemUsed}}" data-mem-total="{{.MemTotal}}" data-load1="{{printf "%.3f" .Load1}}" data-load5="{{printf "%.3f" .Load5}}" data-load15="{{printf "%.3f" .Load15}}" data-age="{{printf "%.3f" .Age}}">
-  <div class="cell-header">{{if .Link}}<a href="{{.URL}}">{{.Name}}</a>{{else}}<span class="node-name">{{.Name}}</span>{{end}}</div>
-  <pre>{{.HTML}}</pre>
-</div>
-{{end}}
-</div>
+<section class="toolbar" aria-label="Dashboard controls">
+  <div>
+    <div class="group view-controls">
+      <label class="control search-control" for="node-search">Find a node<input id="node-search" type="search" placeholder="Filter by name…" autocomplete="off"></label>
+      <label class="control" for="sort-select">Sort by<select id="sort-select">
+        <option value="name">Name</option><option value="cpuAvg">CPU average</option><option value="cpuMax">CPU peak</option>
+        <option value="memPct">Memory %</option><option value="memUsed">Memory used</option><option value="memTotal">Memory total</option>
+        <option value="load1">Load 1m</option><option value="load5">Load 5m</option><option value="load15">Load 15m</option><option value="age">Age</option>
+      </select></label>
+      <label class="control" for="density-select">Density<select id="density-select"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
+    </div>
+    <div class="filters"><label><input id="hide-stale" type="checkbox"> Hide stale</label><label><input id="hide-offline" type="checkbox"> Hide offline</label></div>
+  </div>
+  <details class="display-controls" id="display-controls"><summary>Appearance</summary><div class="group">
+    <label class="control" for="theme-select">Theme<select id="theme-select"><option value="dark">Dark</option><option value="light">Light</option></select></label>
+    <label class="control" for="palette-select">Color<select id="palette-select">
+      <option value="monochrome">Monochrome</option><option value="solarized">Solarized</option><option value="tango">Tango</option><option value="nord">Nord</option><option value="gruvbox">Gruvbox</option><option value="dracula">Dracula</option><option value="catppuccin">Catppuccin</option><option value="everforest">Everforest</option><option value="midnight">Midnight</option><option value="matrix">Matrix</option><option value="amber">Amber</option><option value="paper">Paper</option><option value="contrast">High Contrast</option>
+    </select></label>
+  </div></details>
+</section>
+<main>
+  <div class="section-heading"><h2>Cluster nodes</h2><span id="visible-count" role="status">{{len .Nodes}} nodes</span></div>
+  <div id="nodes" class="nodes">
+  {{range .Nodes}}
+  <article class="cell {{.State}}" aria-label="{{.Name}}" data-name="{{.Name}}" data-state="{{.State}}" data-cpu-avg="{{printf "%.3f" .CPUAvg}}" data-cpu-max="{{printf "%.3f" .CPUMax}}" data-mem-pct="{{printf "%.3f" .MemPct}}" data-mem-used="{{.MemUsed}}" data-mem-total="{{.MemTotal}}" data-load1="{{printf "%.3f" .Load1}}" data-load5="{{printf "%.3f" .Load5}}" data-load15="{{printf "%.3f" .Load15}}" data-age="{{printf "%.3f" .Age}}">
+    <header class="cell-header"><h3>{{if .Link}}<a href="{{.URL}}" title="View cluster from {{.Name}}">{{.Name}}</a>{{else}}<span class="node-name">{{.Name}}</span>{{end}}</h3><span class="status">{{.StatusLabel}}</span></header>
+    <p class="age">{{.AgeLabel}}</p>
+    {{if eq .State "offline"}}
+      <p class="offline-note">Waiting for this node to reconnect.</p>
+    {{else}}
+      <section class="metric" aria-label="CPU summary">
+        <div class="metric-heading"><span class="metric-label">CPU <small>· {{.CoreCount}} logical</small></span>{{if .CoreCount}}<strong>{{printf "%.0f" .CPUAvg}}<small>% avg</small></strong>{{else}}<span>Unavailable</span>{{end}}</div>
+        {{if .CoreCount}}<meter min="0" max="100" low="55" high="80" optimum="0" value="{{.CPUAvg}}" aria-label="Average CPU usage">{{printf "%.1f" .CPUAvg}}%</meter>
+        <p class="metric-note">Peak core {{printf "%.1f" .CPUMax}}%</p>
+        <div class="core-map" aria-hidden="true">{{range .Bands}}<span class="core-band {{.Level}}" title="CPU {{.First}}–{{.Last}} · peak {{printf "%.1f" .Peak}}%"></span>{{end}}</div>
+        <p class="metric-note map-note">{{len .Bands}} bands · peak per group · detail below</p>{{end}}
+      </section>
+      <section class="metric" aria-label="Memory summary">
+        <div class="metric-heading"><span class="metric-label">Memory</span>{{if .MemTotal}}<strong>{{printf "%.0f" .MemPct}}<small>%</small></strong>{{else}}<span>Unavailable</span>{{end}}</div>
+        {{if .MemTotal}}<meter min="0" max="100" low="70" high="90" optimum="0" value="{{.MemPct}}" aria-label="Memory usage">{{printf "%.1f" .MemPct}}%</meter><p class="metric-note">{{.MemLabel}}</p>{{end}}
+      </section>
+      <dl class="load" aria-label="Load averages"><div><dt>LOAD 1m</dt><dd>{{printf "%.2f" .Load1}}</dd></div><div><dt>5m</dt><dd>{{printf "%.2f" .Load5}}</dd></div><div><dt>15m</dt><dd>{{printf "%.2f" .Load15}}</dd></div></dl>
+      {{if .Cores}}<details class="core-details"><summary>Inspect {{.CoreCount}} logical CPUs</summary><div class="core-scroll" tabindex="0" role="region" aria-label="Logical CPU usage for {{.Name}}"><div class="core-grid">
+        {{range .Cores}}<div class="core-reading"><div class="metric-heading"><span class="muted">CPU {{.Index}}</span><span>{{printf "%.1f" .Percent}}%</span></div><meter min="0" max="100" low="55" high="80" optimum="0" value="{{.Percent}}" aria-label="CPU {{.Index}} usage">{{printf "%.1f" .Percent}}%</meter></div>{{end}}
+      </div></div></details>{{end}}
+    {{end}}
+    {{if .Version}}<p class="version">{{.Version}}</p>{{end}}
+  </article>
+  {{end}}
+  </div>
+  <div class="empty" id="empty-state" {{if .Nodes}}hidden{{end}}><p>No nodes to show. Check your filters or wait for a heartbeat.</p><button id="reset-filters" type="button">Clear filters</button></div>
+</main>
+<footer>{{.BestHint}} · Node names with links open that peer’s view.<noscript> JavaScript is disabled. Reload the page for new readings; core details still work.</noscript></footer>
 </body>
 </html>

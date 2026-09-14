@@ -12,6 +12,8 @@ deployment paths.
 ## Features
 
 - **Cluster htop view**: CPU, memory, load, freshness, and offline status for every known node.
+- **Responsive node cards**: compact summaries, searchable nodes, two display
+  densities, and expandable core readings that stay bounded on large machines.
 - **Hot-potato refresh**: a busy node can bake a lower-load peer into the next browser refresh.
 - **Peer rebasing**: node links point at that node's own HTTP address, so the browser moves to the selected peer.
 - **Zero-config LAN discovery**: nodes discover peers with mDNS.
@@ -50,6 +52,25 @@ Run the same binary on additional LAN machines and they should discover each oth
 If you start `pulsed` again while an instance is already running on the machine, the second process does not open another writer on the same store or publish a duplicate node. When the existing `PULSED_DB` is locked, or the configured gossip port is already bound, it joins as a terminal-only mirror with a temporary database and renders the cluster view in your terminal.
 
 ## Configuration
+
+### Dashboard controls
+
+The browser dashboard keeps text readable as the window and cluster change size.
+Each node shows average and peak CPU, memory usage, and the three load averages.
+CPU counts refer to logical CPUs reported by the system.
+
+In Comfortable density, up to 32 bands summarize contiguous groups of CPUs.
+Each band's color reflects its busiest core, so a hotspot is not averaged away.
+Expand **Inspect logical CPUs** to see every numbered CPU and its percentage in a
+scrollable panel. Compact density hides the bands and reduces card spacing.
+
+Search by node name, sort by a metric, and hide stale or offline nodes. Appearance
+contains the existing themes and color palettes. **Pause refresh** holds the
+current snapshot; **Refresh now** requests a new one. Automatic refresh and peer
+links carry filters, density, expanded panels, and scroll position between views.
+Keyboard interaction defers automatic refresh until focus leaves the control.
+
+### Daemon settings
 
 ```bash
 export PULSED_HTTP=":9000"                         # HTTP listen address, default :8080
