@@ -44,6 +44,18 @@ installer uses these links. Download `checksums.sha256` alongside the binaries
 and run `sha256sum -c checksums.sha256` (or `shasum -a 256 -c checksums.sha256`).
 Private projects still require authentication for downloads.
 
+The Releases page lists all six OS/architecture binaries and `checksums.sha256`
+under its asset links. Files are stored in the Generic Package Registry as
+`pulsed/<version>/<filename>` (for example, `pulsed/1.2.3/pulsed-windows-amd64.exe`).
+Keep asset labels equal to filenames: the GitLab semantic-release plugin uses
+`label` for both the release link text and the uploaded package filename.
+
+Release downloads do not depend on the two-week build job artifacts, so no
+artifact "keep" API call is needed. Retain the corresponding `pulsed` package
+versions; deleting them breaks the release download links. A release is only
+published when conventional commits warrant a new version; MR builds and
+default-branch commits that do not trigger a release only produce CI artifacts.
+
 The former GitHub release workflow has been removed. The Go module path remains
 `github.com/OffPeakEngineer/pulsed`; changing the module's public import path is
 a separate compatibility decision.

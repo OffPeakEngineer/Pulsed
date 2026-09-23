@@ -3,13 +3,13 @@ const repositoryUrl = process.env.CI_PROJECT_URL
   : 'https://gitlab.com/off-peak.engineer/utilities/pulsed.git';
 
 const binaries = [
-  ['pulsed-linux-amd64', 'Linux amd64 binary'],
-  ['pulsed-linux-arm64', 'Linux arm64 binary'],
-  ['pulsed-darwin-amd64', 'macOS Intel binary'],
-  ['pulsed-darwin-arm64', 'macOS Apple Silicon binary'],
-  ['pulsed-windows-amd64.exe', 'Windows amd64 binary'],
-  ['pulsed-windows-arm64.exe', 'Windows arm64 binary'],
-  ['checksums.sha256', 'SHA-256 checksums']
+  'pulsed-linux-amd64',
+  'pulsed-linux-arm64',
+  'pulsed-darwin-amd64',
+  'pulsed-darwin-arm64',
+  'pulsed-windows-amd64.exe',
+  'pulsed-windows-arm64.exe',
+  'checksums.sha256'
 ];
 
 module.exports = {
@@ -24,9 +24,10 @@ module.exports = {
     ['@semantic-release/gitlab', {
       successCommentCondition: false,
       failCommentCondition: false,
-      assets: binaries.map(([name, label]) => ({
+      // For generic packages, label is also the uploaded filename.
+      assets: binaries.map((name) => ({
         path: `dist/${name}`,
-        label,
+        label: name,
         type: 'package',
         target: 'generic_package',
         packageName: 'pulsed',

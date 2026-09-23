@@ -101,6 +101,7 @@ release:
     - commitlint
     - go-checks
     - job: build-binaries
+      # Release prepare rebuilds with the selected tag, not the dev version.
       artifacts: false
   cache:
     key:
