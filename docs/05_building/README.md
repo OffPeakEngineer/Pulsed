@@ -101,4 +101,6 @@ Set `PULSED_CHROME` to your local Chrome/Chromium executable, or omit it if
 Playwright's bundled Chromium is installed. `PULSED_SCREENSHOTS` is optional.
 The script checks widths from 320 to 2,560 pixels in both densities, expanded
 core bounds, filtering, refresh/pause/resume, state transfer between origins,
-blocked storage, and native core disclosure with JavaScript disabled.
+blocked storage, and native core disclosure with JavaScript disabled. Touch
+layouts also check 44-pixel control targets, readable phone inputs, and expanded
+CPU details without horizontal scrolling in portrait and landscape layouts.

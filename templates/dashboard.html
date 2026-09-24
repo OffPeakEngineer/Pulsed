@@ -237,7 +237,7 @@ h1::before { content: '▰ '; color: var(--fresh); }
 .toolbar { align-items: flex-start; justify-content: space-between; margin-bottom: 22px; }
 .toolbar > div { flex: 1 1 580px; min-width: 0; }
 .group { gap: 8px 12px; }
-.control { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
+.control { display: grid; gap: 5px; min-width: 0; font-size: 12px; color: var(--muted); }
 .control select, .control input { font-size: 13px; }
 .search-control { flex: 1 1 200px; max-width: 360px; }
 .search-control input { width: 100%; }
@@ -282,7 +282,7 @@ meter::-moz-meter-bar { background: var(--fresh); }
 .core-details { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 12px; }
 .core-details summary { color: var(--accent); font-size: 12px; padding: 3px 0; }
 .core-scroll { max-height: 280px; overflow: auto; overscroll-behavior: contain; margin-top: 12px; padding: 4px; scrollbar-gutter: stable; }
-.core-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 12px; }
+.core-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr)); gap: 12px; }
 .core-reading { font-size: 11px; }
 .core-reading .metric-heading { font-size: 11px; }
 .core-reading meter { height: 6px; margin-top: 4px; }
@@ -297,10 +297,24 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
 @media (max-width: 480px) {
   body { font-size: 13px; }
   .masthead { align-items: flex-start; gap: 16px; }
-  .masthead .group { gap: 8px; }
+  .masthead .group { gap: 8px; width: 100%; }
+  #refresh-state { flex-basis: 100%; }
+  .masthead .group button { flex: 1 1 120px; }
   .cell { padding: 14px; }
   .toolbar > div, .display-controls { width: 100%; }
-  .search-control { max-width: none; flex-basis: 100%; }
+  .view-controls, .display-controls .group {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%;
+  }
+  .search-control { max-width: none; grid-column: 1 / -1; }
+  .control select, .control input { width: 100%; font-size: 16px; }
+  .filters { gap: 4px 16px; }
+  .filters label { min-height: 44px; }
+  .core-details summary { padding: 12px 0; }
+  .display-controls summary { padding: 4px 0; }
+}
+@media (pointer: coarse) {
+  button, select, input[type="search"], summary, .filters label { min-height: 44px; }
+  .cell-header a { display: inline-block; padding: 10px 0; }
 }
 </style>
 <script>

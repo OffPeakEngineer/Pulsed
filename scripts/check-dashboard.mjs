@@ -52,6 +52,28 @@ try {
  await page.setViewportSize({width:390,height:844});
  if (output) await page.screenshot({path:output+'/mobile.png',fullPage:false});
 
+ // Phone controls remain readable and tappable with appearance and CPU details open.
+ const phone = await browser.newContext({viewport:{width:320,height:740},isMobile:true,hasTouch:true});
+ const mobile = await phone.newPage();
+ await mobile.goto(baseURL);
+ await mobile.getByRole('button',{name:'Pause refresh',exact:true}).click();
+ await mobile.getByText('Appearance',{exact:true}).click();
+ await mobile.getByText('Inspect 1024 logical CPUs',{exact:true}).click();
+ for (const width of [320,390,480,844]) {
+  await mobile.setViewportSize({width,height:740});
+  assert(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`phone overflow at ${width}`);
+  const targets=await mobile.locator('button:visible, select:visible, input[type="search"], summary:visible, .filters label').evaluateAll(els=>els.map(el=>el.getBoundingClientRect().height));
+  assert(targets.every(h=>h>=44),`small touch target at ${width}`);
+  const cores=mobile.locator('[data-name^="large-host"] .core-scroll');
+  assert(await cores.evaluate(el=>el.scrollWidth<=el.clientWidth),`CPU detail overflow at ${width}`);
+  if (width<=480) {
+   assert(await mobile.locator('#node-search, select').evaluateAll(els=>els.every(el=>parseFloat(getComputedStyle(el).fontSize)>=16)),'phone input text too small');
+  }
+ }
+ await mobile.setViewportSize({width:390,height:844});
+ if (output) await mobile.screenshot({path:output+'/mobile-touch.png',fullPage:true});
+ await phone.close();
+
  // Same-origin refresh must fetch a new document even if only view state changes.
  const auto = await browser.newPage();
  const documents=[];
