@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"math"
@@ -22,11 +23,16 @@ import (
 
 const defaultNodeTTL = 15 * time.Second
 
-//go:embed templates/dashboard.html
+//go:embed templates/dashboard.html all:templates/assets
 var templateFS embed.FS
 
 var pageTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/dashboard.html"),
+	template.New("dashboard.html").Funcs(template.FuncMap{
+		"json": func(value any) (string, error) {
+			encoded, err := json.Marshal(value)
+			return string(encoded), err
+		},
+	}).ParseFS(templateFS, "templates/dashboard.html"),
 )
 
 func init() {
@@ -466,8 +472,8 @@ func displayQuery(r *http.Request) url.Values {
 const maxCoreBands = 32
 
 type coreData struct {
-	Index   int
-	Percent float64
+	Index   int     `json:"index"`
+	Percent float64 `json:"percent"`
 }
 
 type coreBand struct {
@@ -537,8 +543,8 @@ func dashboardCell(s NodeStats) cellData {
 type cellData struct {
 	Name        string
 	URL         string
-	Cores       []coreData
-	Bands       []coreBand
+	Cores       []coreData `json:"-"`
+	Bands       []coreBand `json:"-"`
 	CoreCount   int
 	MemLabel    string
 	Version     string
@@ -566,13 +572,50 @@ type pageData struct {
 	RefreshURL   string
 	BestHint     string
 	Summary      clusterSummary
+	Snapshot     dashboardSnapshot
+	AssetURL     string
+	PagesURL     string
+}
+
+type dashboardSnapshot struct {
+	GeneratedAt int64                       `json:"generatedAt"`
+	ServingNode string                      `json:"servingNode"`
+	Nodes       []cellData                  `json:"nodes"`
+	History     map[string][]cpuObservation `json:"history"`
 }
 
 func makeHandler(db *pebble.DB, selfName string) http.HandlerFunc {
+	return makeHandlerWithHistory(db, selfName, newCPUHistory())
+}
+
+func makeHandlerWithHistory(db *pebble.DB, selfName string, history *cpuHistory) http.HandlerFunc {
+	assets := http.FileServer(http.FS(templateFS))
+	pages := makePagesHandler()
 	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/pages/") || strings.HasSuffix(r.URL.Path, "/pages") {
+			pages.ServeHTTP(w, r)
+			return
+		}
+		if i := strings.Index(r.URL.Path, "/assets/ui/"); i >= 0 {
+			assetRequest := r.Clone(r.Context())
+			assetRequest.URL.Path = "/templates" + r.URL.Path[i:]
+			assets.ServeHTTP(w, assetRequest)
+			return
+		}
 		nodes, err := dbScanAll(db)
 		if err != nil {
 			http.Error(w, "db error", 500)
+			return
+		}
+		now := time.Now()
+		history.observe(nodes, now)
+		if i := strings.LastIndex(r.URL.Path, "/api/v1/"); i >= 0 {
+			resource := r.URL.Path[i+len("/api/v1/"):]
+			if resource != "snapshot" && resource != "nodes" && resource != "cpu-history" {
+				http.NotFound(w, r)
+				return
+			}
+			serveSnapshotResource(w, r, makeAPISnapshot(nodes, history, selfName, r, now))
 			return
 		}
 
@@ -604,11 +647,18 @@ func makeHandler(db *pebble.DB, selfName string) http.HandlerFunc {
 			RefreshURL:   refreshURL,
 			BestHint:     bestHint,
 			Summary:      summarizeCluster(nodes),
+			AssetURL:     "." + pageURL("/assets/ui/dashboard.js", r.URL.Query()),
+			PagesURL:     "." + pageURL("/pages/", r.URL.Query()),
+			Snapshot: dashboardSnapshot{
+				GeneratedAt: now.UnixMilli(), ServingNode: selfName,
+				Nodes: cells, History: history.snapshot(),
+			},
 		}); err != nil {
 			http.Error(w, "template error", 500)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
 		w.Write(buf.Bytes())
 	}
 }

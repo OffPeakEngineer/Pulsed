@@ -38,3 +38,5 @@ data/
 node_modules/
 .cache/
 .ci/
+frontend/pages/.nuxt/
+frontend/pages/.output/

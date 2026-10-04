@@ -135,9 +135,13 @@ func main() {
 
 	// ── HTTP ─────────────────────────────────────────────────────────────────
 	if webEnabled {
+		history := newCPUHistory()
+		done := make(chan struct{})
+		defer close(done)
+		go history.collect(db, done)
 		mux := http.NewServeMux()
 		mux.HandleFunc("/healthz", healthHandler)
-		mux.HandleFunc("/", makeHandler(db, nodeName))
+		mux.HandleFunc("/", makeHandlerWithHistory(db, nodeName, history))
 		if err := http.ListenAndServe(httpAddr, mux); err != nil {
 			log.Fatalf("http: %v", err)
 		}

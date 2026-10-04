@@ -2,15 +2,64 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"html"
+	"io/fs"
 	"math"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestDashboardServesEmbeddedVersytlThroughProxyPrefixes(t *testing.T) {
+	db := openTestDB(t)
+	handler := makeHandler(db, "node-a")
+	for _, path := range []string{"/assets/ui/dashboard.js", "/nested/assets/ui/dashboard.js?pulsed_node=node-a"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest("GET", path, nil))
+		if rr.Code != 200 || !strings.Contains(rr.Header().Get("Content-Type"), "javascript") {
+			t.Fatalf("asset %s: status %d, type %s", path, rr.Code, rr.Header().Get("Content-Type"))
+		}
+	}
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest("GET", "/assets/ui/not-found.js", nil))
+	if rr.Code != 404 {
+		t.Fatalf("unknown asset status %d", rr.Code)
+	}
+}
+
+func TestDashboardSnapshotsRetainActualCPUObservations(t *testing.T) {
+	db := openTestDB(t)
+	handler := makeHandler(db, "serving-peer")
+	name := "edge</script><script>alert(1)</script>"
+	now := time.Now()
+	for i := 0; i < 2; i++ {
+		if err := dbSet(db, NodeStats{Name: name, CPU: []float64{float64(20 + i*10)}, UpdatedAt: now.Add(time.Duration(i-2) * time.Second).UnixNano()}); err != nil {
+			t.Fatal(err)
+		}
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest("GET", "/", nil))
+		if rr.Code != 200 || strings.Contains(rr.Body.String(), name) {
+			t.Fatal("snapshot contains unescaped node markup or failed to render")
+		}
+		match := regexp.MustCompile(`id="snapshot-data" hidden data-snapshot="([^"]+)"`).FindStringSubmatch(rr.Body.String())
+		if len(match) != 2 {
+			t.Fatal("missing snapshot payload")
+		}
+		var snapshot dashboardSnapshot
+		if err := json.Unmarshal([]byte(html.UnescapeString(match[1])), &snapshot); err != nil {
+			t.Fatal(err)
+		}
+		if snapshot.ServingNode != "serving-peer" || len(snapshot.History[name]) != i+1 || snapshot.History[name][i].Average != float64(20+i*10) {
+			t.Fatalf("incorrect snapshot: %+v", snapshot)
+		}
+	}
+}
 
 func TestDashboardCoreBandsPreserveEveryCoreAndHotspots(t *testing.T) {
 	for _, count := range []int{0, 1, 8, 32, 33, 64, 192, 256, 1024, 2048} {
@@ -85,7 +134,22 @@ func TestDashboardResponsiveFixtures(t *testing.T) {
 		nodes = append(nodes, dashboardCell(stats))
 	}
 	var buf bytes.Buffer
-	err := pageTmpl.Execute(&buf, pageData{Nodes: nodes, Theme: "dark", Palette: "monochrome", RefreshMs: 3000, RefreshLabel: "3.0s", RefreshURL: "/dashboard.html?theme=dark&palette=monochrome", BestHint: "Preview · synthetic mixed-hardware cluster", Summary: clusterSummary{Fresh: 10, Stale: 1, Offline: 1, HasHot: true, Hottest: "compute-192", HotCPU: 49, HotLoad: 1.4}})
+	history := make(map[string][]cpuObservation)
+	for i, node := range nodes {
+		if i == 6 {
+			continue // A node without CPU samples must have an honest empty state.
+		}
+		for j := 0; j < 120; j++ {
+			if j > 40 && j < 55 {
+				continue // A missed-heartbeat interval for the graph's gap handling.
+			}
+			history[node.Name] = append(history[node.Name], cpuObservation{
+				At:      now.Add(time.Duration(j-120) * 2 * time.Second).UnixMilli(),
+				Average: 20 + float64((j*3+i*7)%40), Peak: 55 + float64((j+i*13)%40), TTLSeconds: 15,
+			})
+		}
+	}
+	err := pageTmpl.Execute(&buf, pageData{Nodes: nodes, Theme: "dark", Palette: "monochrome", RefreshMs: 3000, RefreshLabel: "3.0s", RefreshURL: "/dashboard.html?theme=dark&palette=monochrome", BestHint: "Preview · synthetic mixed-hardware cluster", Summary: clusterSummary{Fresh: 10, Stale: 1, Offline: 1, HasHot: true, Hottest: "compute-192", HotCPU: 49, HotLoad: 1.4}, Snapshot: dashboardSnapshot{GeneratedAt: now.UnixMilli(), ServingNode: "preview-peer", Nodes: nodes, History: history}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,6 +170,22 @@ func TestDashboardResponsiveFixtures(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(dir, "dashboard.html"), buf.Bytes(), 0644); err != nil {
 			t.Fatal(err)
 		}
+		if err := fs.WalkDir(templateFS, "templates/assets", func(path string, entry fs.DirEntry, err error) error {
+			if err != nil || entry.IsDir() {
+				return err
+			}
+			target := filepath.Join(dir, strings.TrimPrefix(path, "templates/"))
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				return err
+			}
+			content, err := templateFS.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(target, content, 0644)
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -118,6 +198,9 @@ func TestDashboardRefreshKeepsProxyRoute(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), `/dashboard?pulsed_node=node-a`) {
 		t.Fatal("refresh lost the proxy route")
+	}
+	if !strings.Contains(rr.Body.String(), `./assets/ui/dashboard.js?pulsed_node=node-a`) {
+		t.Fatal("UI asset lost the proxy node query")
 	}
 }
 

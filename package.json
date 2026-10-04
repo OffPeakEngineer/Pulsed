@@ -11,9 +11,16 @@
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/gitlab": "^13.3.3",
     "@semantic-release/release-notes-generator": "^14.1.1",
-    "semantic-release": "^25.0.3"
+    "esbuild": "0.28.2",
+    "nuxt": "4.5.2",
+    "semantic-release": "^25.0.3",
+    "typescript": "7.0.2",
+    "vue": "3.5.41",
+    "vue-router": "5.2.0"
   },
   "scripts": {
+    "build:ui": "node scripts/check-versytl-vendor.mjs && tsc -p frontend/tsconfig.json && esbuild frontend/main.ts --bundle --format=esm --target=es2022 --outfile=templates/assets/ui/dashboard.js --log-level=warning",
+    "test:ui": "npm run build:ui && node --test frontend/test/*.test.mjs",
     "audit": "npm audit --audit-level=high",
     "release": "semantic-release"
   }

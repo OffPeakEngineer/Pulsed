@@ -116,6 +116,10 @@ scope so a reader can distinguish raw internal detail from a boundary summary.
 
 ## Related
 
+- `versytl_dashboard.md` implements an initial bounded, peer-local CPU trend
+  inspector and in-place refresh. Persistent recall, re-sharing, recursive node
+  indexes, and timeline playback remain in this epic.
+
 - Replaces the separate planning tickets for historical sparklines,
   keyboard-friendly dashboard navigation, and isolated history playback UI
 - Absorbs the previous local history retention and recent event ring planning

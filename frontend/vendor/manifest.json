@@ -1,0 +1,125 @@
+﻿{
+    "captured":  "2026-10-04",
+    "modules":  [
+                    {
+                        "name":  "scene",
+                        "repository":  "https://gitlab.com/off-peak.engineer/library/versytl/scene",
+                        "commit":  "bf6025d2c2f3d506526b0e5e0efa3e6884a49507",
+                        "sourceDirectory":  "src",
+                        "files":  [
+                                      {
+                                          "path":  "scene.ts",
+                                          "sha256":  "2053d83d2933b2de986be9f1b0d3cd532726378cad6134492981e2ae1f2e63ef"
+                                      },
+                                      {
+                                          "path":  "serialization.ts",
+                                          "sha256":  "9b04f8992a21adf3ac1aaef42fc7178dbfc9105c683cb9eac77382cc31bb4d40"
+                                      },
+                                      {
+                                          "path":  "svg.ts",
+                                          "sha256":  "4311cd1f25693e481a16cb9b2dd2bb5b934871c8700368f5476d58fdec1bb82c"
+                                      },
+                                      {
+                                          "path":  "types.ts",
+                                          "sha256":  "4f1139a3ed8ecd7b02bcc2a828f5e7661ab3e41ccbc2cb6e3776394d7cc165bc"
+                                      },
+                                      {
+                                          "path":  "validation.ts",
+                                          "sha256":  "f242b090dd70e9bc014ec07665c78bda1ba005f31d80b0973505eba38e325a9c"
+                                      }
+                                  ]
+                    },
+                    {
+                        "name":  "shipkit",
+                        "repository":  "https://gitlab.com/off-peak.engineer/library/versytl/shipkit",
+                        "commit":  "804419c2d5a0c0479e4e540460f1cc800ba791ae",
+                        "sourceDirectory":  "src",
+                        "files":  [
+                                      {
+                                          "path":  "cardScene.ts",
+                                          "sha256":  "9fb59a2b40a039ff3f02128b63aa25d7c76d77ad7678f32a81a9b988c3608332"
+                                      },
+                                      {
+                                          "path":  "dashboardScene.ts",
+                                          "sha256":  "504b812fd158276c3b3fcdcf93ace04265feffde8012d097000c8b2d3d5f29b5"
+                                      },
+                                      {
+                                          "path":  "progressScene.ts",
+                                          "sha256":  "77865a7ef3fdc6df0a4abc4e8d6e84e9e9bdc6c06252d90c841a25aa2bd37497"
+                                      },
+                                      {
+                                          "path":  "types.ts",
+                                          "sha256":  "38b9aa3262f07eaf8423091118dbd5bec504bc92ad097b87a3c234e3b38ddf1b"
+                                      }
+                                  ]
+                    },
+                    {
+                        "name":  "stasis",
+                        "repository":  "https://gitlab.com/off-peak.engineer/library/versytl/stasis",
+                        "commit":  "7ad797fe936134827ea0358ce09be7514e76fac0",
+                        "sourceDirectory":  "packages/stasis/src",
+                        "files":  [
+                                      {
+                                          "path":  "index.ts",
+                                          "sha256":  "c08d36a17a475ca1ec17b6313207ae44191238bc93d511949698995a0fae237b"
+                                      }
+                                  ]
+                    },
+                    {
+                        "name":  "bridge",
+                        "repository":  "https://gitlab.com/off-peak.engineer/library/versytl/bridge",
+                        "commit":  "d108619a02173267e442bf8ddcbccc32da449f3f",
+                        "sourceDirectory":  "src",
+                        "files":  [
+                                      {
+                                          "path":  "index.ts",
+                                          "sha256":  "990f16ad34109bc2b50ab9f2ebad711066b400a260d9261869692d01d632514f"
+                                      },
+                                      {
+                                          "path":  "registry.ts",
+                                          "sha256":  "3763daac6b1b844805d365d76690c63025312f4a5657539a43f6bc820c970a36"
+                                      },
+                                      {
+                                          "path":  "errors.ts",
+                                          "sha256":  "e883e43a80b2dfb2200e4303f6c184440254a178f4f94649481428dcf55e0441"
+                                      },
+                                      {
+                                          "path":  "types.ts",
+                                          "sha256":  "6a06102a4f1fefa017fe864952ffec9c4d3869ff4e6e421c6bbf54fc3e9e579c"
+                                      }
+                                  ]
+                    },
+                    {
+                        "name":  "stasis-pages",
+                        "repository":  "https://gitlab.com/off-peak.engineer/library/versytl/stasis",
+                        "commit":  "7ad797fe936134827ea0358ce09be7514e76fac0",
+                        "sourceDirectory":  ".",
+                        "files":  [
+                                      {
+                                          "path":  "nuxt.config.ts",
+                                          "sha256":  "46ad8328dfd6fbd9e1c7e8670d8312a067ad8bdfc90ae4f3b62cd96cdda888c4"
+                                      },
+                                      {
+                                          "path":  "app/app.vue",
+                                          "sha256":  "31937e20c74b2ae1282cede1b86c7d842d11da2a00bf23b4282e2ef1e303c17c"
+                                      },
+                                      {
+                                          "path":  "app/assets/css/main.css",
+                                          "sha256":  "945bf9011f1117f314d6c26c61e9e28443d0ec615dac525dffd0555eeebe671c"
+                                      },
+                                      {
+                                          "path":  "app/types/stasis.ts",
+                                          "sha256":  "90c73d34f4251450529bf6438ad460daf3ef688dd891b5eeabd0d35a34a26d29"
+                                      },
+                                      {
+                                          "path":  "build/dashboard-loader.ts",
+                                          "sha256":  "16570746c52ed8af1ccde9d3a26f2a7c63bb3f4ac26e3a2aab0bd41c0b739090"
+                                      },
+                                      {
+                                          "path":  "packages/stasis/src/index.ts",
+                                          "sha256":  "c08d36a17a475ca1ec17b6313207ae44191238bc93d511949698995a0fae237b"
+                                      }
+                                  ]
+                    }
+                ]
+}

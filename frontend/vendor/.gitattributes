@@ -1,0 +1,4 @@
+# Preserve captured bytes so provenance hashes survive cross-platform checkout.
+*.ts -text
+*.vue -text
+*.css -text

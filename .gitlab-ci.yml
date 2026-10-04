@@ -45,6 +45,8 @@ commitlint:
     - npm ci --prefer-offline
   script:
     - npm run audit
+    - npm run test:ui
+    - git diff --exit-code -- templates/assets/ui
     - |
       if [ -n "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}" ]; then
         commit_from="$CI_MERGE_REQUEST_DIFF_BASE_SHA"

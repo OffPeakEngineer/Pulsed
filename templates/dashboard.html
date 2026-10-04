@@ -8,18 +8,18 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   color-scheme: dark;
-  --bg: #0d0d0d;
-  --surface: #1a1a1a;
-  --surface-alt: #252525;
-  --border: #2a2a2a;
-  --text: #f7f7f7;
-  --muted: #9ca3af;
+  --bg: #071019;
+  --surface: #0d1d27;
+  --surface-alt: #132b38;
+  --border: #29414f;
+  --text: #f1f6f7;
+  --muted: #9bb0bc;
   --offline: #f97316;
   --stale: #facc15;
-  --fresh: #22c55e;
-  --accent: #60a5fa;
-  --toolbar: #111111;
-  --toolbar-border: #2a2a2a;
+  --fresh: #55e6c1;
+  --accent: #65d5ef;
+  --toolbar: #0a161e;
+  --toolbar-border: #29414f;
 }
 :root[data-theme='light'] {
   color-scheme: light;
@@ -261,7 +261,7 @@ h1::before { content: '▰ '; color: var(--fresh); }
 .status { font-size: 11px; display: inline-flex; align-items: center; gap: 6px; }
 .status::before { content: '●'; font-size: 9px; }
 .age { font-size: 11px; margin-top: 5px; }
-.metric { margin-top: 18px; }
+.metric { margin-top: 14px; }
 .metric-heading { justify-content: space-between; gap: 4px; font-size: 12px; }
 .metric-heading strong { font-size: 21px; font-weight: 500; line-height: 1.2; }
 .metric-heading small { color: var(--muted); font-size: 12px; }
@@ -276,7 +276,7 @@ meter::-moz-meter-bar { background: var(--fresh); }
 .core-band { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--fresh); opacity: .65; }
 .core-band.medium { background: var(--stale); opacity: .85; }
 .core-band.high { background: var(--offline); opacity: 1; }
-.load { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; border-top: 1px solid var(--border); margin-top: 18px; padding-top: 12px; }
+.load { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; border-top: 1px solid var(--border); margin-top: 14px; padding-top: 12px; }
 .load dt { font-size: 10px; color: var(--muted); }
 .load dd { font-size: 15px; margin-top: 4px; overflow-wrap: anywhere; }
 .core-details { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 12px; }
@@ -286,7 +286,7 @@ meter::-moz-meter-bar { background: var(--fresh); }
 .core-reading { font-size: 11px; }
 .core-reading .metric-heading { font-size: 11px; }
 .core-reading meter { height: 6px; margin-top: 4px; }
-.version { color: var(--muted); font-size: 10px; margin-top: 14px; overflow-wrap: anywhere; }
+.version { color: var(--muted); font-size: 10px; margin-top: 10px; overflow-wrap: anywhere; }
 .offline-note, .empty { color: var(--muted); padding: 24px 0; }
 .empty { text-align: center; border: 1px dashed var(--border); border-radius: 8px; }
 footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: anywhere; }
@@ -316,6 +316,39 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
   button, select, input[type="search"], summary, .filters label { min-height: 44px; }
   .cell-header a { display: inline-block; padding: 10px 0; }
 }
+.masthead h1 { font-size: 32px; }
+.masthead .eyebrow { font-size: 13px; }
+.summary { background: var(--surface); padding: 18px; border: 1px solid var(--border); border-radius: 12px; }
+.inspector { margin: 0 0 24px; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); min-width: 0; }
+.inspector-heading { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; justify-content: space-between; }
+.inspector-heading h2 { font-size: 20px; overflow-wrap: anywhere; margin-bottom: 6px; }
+.inspector-heading > div:first-child { flex: 1 1 250px; min-width: 0; }
+.inspector-controls { display: none; flex-wrap: wrap; gap: 12px; align-items: end; }
+.versytl-ready .inspector-controls { display: flex; }
+.inspect-history { display: none; width: 100%; margin-top: 12px; font-size: 12px; }
+.versytl-ready .inspect-history { display: block; }
+.cell[data-selected='true'] { border-color: var(--accent); }
+.inspection-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin: 18px 0 12px; }
+.inspection-metrics dt { color: var(--muted); font-size: 11px; margin-bottom: 6px; }
+.inspection-metrics dd { font-size: 13px; overflow-wrap: anywhere; }
+#inspect-memory-meter { margin-top: 8px; max-width: 300px; }
+#inspect-memory-meter svg { display: block; width: 100%; height: 8px; }
+.history-chart { min-width: 0; }
+.history-chart svg { display: block; width: 100%; height: auto; max-height: 360px; }
+.history-legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 12px; margin: 8px 0; }
+.history-legend span::before { content: ''; display: inline-block; width: 18px; height: 3px; margin-right: 8px; vertical-align: middle; background: var(--accent); }
+.history-legend .peak::before { background: var(--stale); }
+.history-caption { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+button:disabled { cursor: default; opacity: .6; }
+.snapshot-notice { color: var(--stale); font-size: 12px; margin: 10px 0; }
+@media (max-width: 640px) {
+  .inspection-metrics { grid-template-columns: 1fr; gap: 12px; }
+  .inspector { padding: 14px; }
+  .inspector-controls { width: 100%; }
+  .inspector-controls .control { flex: 1 1 120px; min-width: 0; }
+  .inspector-controls select { width: 100%; min-height: 44px; font-size: 16px; }
+  #export-history { width: 100%; min-height: 44px; }
+}
 </style>
 <script>
 (function() {
@@ -337,7 +370,7 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
   window.addEventListener('DOMContentLoaded', () => {
     const byId = id => document.getElementById(id);
     const nodes = byId('nodes');
-    const cards = Array.from(nodes.querySelectorAll('.cell'));
+    let cards = Array.from(nodes.querySelectorAll('.cell'));
     const sort = byId('sort-select');
     const search = byId('node-search');
     const density = byId('density-select');
@@ -347,6 +380,10 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
     const paletteSelect = byId('palette-select');
     const display = byId('display-controls');
     const pause = byId('pause-refresh');
+    let refreshURL = document.body.dataset.refreshUrl;
+    let refreshMs = Number(document.body.dataset.refreshMs);
+    let refreshLabel = document.body.dataset.refreshLabel;
+    let updating = false;
     const restoreSelect = (el, value, fallback) => { el.value = value; if (!el.value) el.value = fallback; };
     restoreSelect(sort, restored.sort || read('sort', 'name'), 'name');
     restoreSelect(density, restored.density || read('density', 'comfortable'), 'comfortable');
@@ -404,11 +441,12 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
       const keyboardFocus = active && active.matches(':focus-visible');
       return {
         sort: sort.value, search: search.value, density: density.value,
+        selected: byId('inspect-node').value, historyWindow: byId('history-window').value,
         stale: stale.checked, offline: offline.checked, paused, display: display.open,
         scroll: window.scrollY,
         focus: keyboardFocus ? active.id : null,
         focusNode: keyboardFocus && card ? card.dataset.name : null,
-        focusPart: active && active.matches('summary') ? 'summary' : active && active.matches('.core-scroll') ? '.core-scroll' : 'a',
+        focusPart: active && active.matches('summary') ? 'summary' : active && active.matches('.core-scroll') ? '.core-scroll' : active && active.matches('button') ? 'button.inspect-history' : 'a',
         expanded: cards.filter(card => card.querySelector('.core-details[open]')).map(card => ({name: card.dataset.name, scroll: card.querySelector('.core-scroll').scrollTop}))
       };
     }
@@ -418,34 +456,80 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
       url.hash = 'view=' + encodeURIComponent(JSON.stringify(viewState()));
       return url.href;
     }
-    function navigate(base) {
+    async function navigate(base) {
+      if (updating) return;
       const target = new URL(destination(base));
-      // Changing only a fragment does not request fresh server-rendered metrics.
-      if (target.origin === location.origin && target.pathname === location.pathname && target.search === location.search) {
-        history.replaceState(null, '', target.href);
-        location.reload();
+      const currentRoute = new URL(location.href);
+      const nextRoute = new URL(target);
+      for (const route of [currentRoute, nextRoute]) { route.searchParams.delete('theme'); route.searchParams.delete('palette'); }
+      if (nextRoute.origin === currentRoute.origin && nextRoute.pathname === currentRoute.pathname && nextRoute.search === currentRoute.search) {
+        updating = true;
+        const state = viewState();
+        try {
+          const response = await fetch(target.href.split('#')[0], {cache: 'no-store', signal: AbortSignal.timeout(10000)});
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          const next = new DOMParser().parseFromString(await response.text(), 'text/html');
+          const nextNodes = next.getElementById('nodes');
+          const seed = next.getElementById('snapshot-data');
+          if (!nextNodes || !seed) throw new Error('Missing dashboard snapshot');
+          const snapshot = JSON.parse(seed.dataset.snapshot);
+          // Defer a completed fetch if the operator began interacting while it ran.
+          if (document.activeElement.matches('input, select, button:focus-visible, summary:focus-visible, .core-scroll:focus-visible, a:focus-visible') && document.activeElement.id !== 'refresh-now') return;
+          nodes.replaceChildren(...nextNodes.children);
+          cards = Array.from(nodes.querySelectorAll('.cell'));
+          for (const card of cards) {
+            const saved = state.expanded.find(item => item.name === card.dataset.name);
+            if (saved && card.querySelector('.core-details')) {
+              card.querySelector('.core-details').open = true;
+              card.querySelector('.core-scroll').scrollTop = saved.scroll;
+            }
+          }
+          byId('cluster-summary').innerHTML = next.getElementById('cluster-summary').innerHTML;
+          byId('best-hint').textContent = next.getElementById('best-hint').textContent;
+          refreshURL = next.body.dataset.refreshUrl;
+          refreshMs = Number(next.body.dataset.refreshMs);
+          refreshLabel = next.body.dataset.refreshLabel;
+          applyControls();
+          attachPeerLinks();
+          document.dispatchEvent(new CustomEvent('pulsed:snapshot', {detail: snapshot}));
+          byId('snapshot-notice').hidden = true;
+          let focusTarget = state.focus ? byId(state.focus) : null;
+          const focusCard = cards.find(card => card.dataset.name === state.focusNode);
+          if (focusCard) focusTarget = focusCard.querySelector(state.focusPart);
+          focusTarget?.focus({preventScroll: true});
+          window.scrollTo(0, state.scroll);
+          history.replaceState(null, '', destination(target.href));
+        } catch {
+          byId('snapshot-notice').hidden = false;
+        } finally {
+          updating = false;
+          showRefresh();
+        }
       } else {
         location.replace(target.href);
       }
     }
-    for (const link of nodes.querySelectorAll('.cell-header a')) {
-      const base = link.href;
-      const update = () => { link.href = destination(base); };
-      link.addEventListener('click', update); link.addEventListener('auxclick', update);
+    function attachPeerLinks() {
+      for (const link of nodes.querySelectorAll('.cell-header a')) {
+        const base = link.href;
+        const update = () => { link.href = destination(base); };
+        link.addEventListener('click', update); link.addEventListener('auxclick', update);
+      }
     }
+    attachPeerLinks();
     function schedule() {
       clearTimeout(timer);
       if (paused) return;
       timer = setTimeout(() => {
         // Let an active keyboard interaction finish before replacing the document.
         if (document.hidden || document.activeElement.matches('input, select, button:focus-visible, summary:focus-visible, .core-scroll:focus-visible, a:focus-visible')) { schedule(); return; }
-        navigate({{.RefreshURL}});
-      }, {{.RefreshMs}});
+        navigate(refreshURL);
+      }, refreshMs);
     }
     function showRefresh() {
       pause.textContent = paused ? 'Resume refresh' : 'Pause refresh';
       pause.setAttribute('aria-pressed', String(paused));
-      byId('refresh-state').textContent = paused ? 'Refresh paused' : 'Auto-refresh {{.RefreshLabel}}';
+      byId('refresh-state').textContent = paused ? 'Refresh paused' : 'Auto-refresh ' + refreshLabel;
       schedule();
     }
     pause.addEventListener('click', () => { paused = !paused; showRefresh(); });
@@ -454,7 +538,7 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
     requestAnimationFrame(() => {
       let focusTarget = typeof restored.focus === 'string' ? byId(restored.focus) : null;
       const focusCard = cards.find(card => card.dataset.name === restored.focusNode && !card.hidden);
-      if (focusCard) focusTarget = focusCard.querySelector(allowed(restored.focusPart, ['summary', '.core-scroll', 'a'], 'summary'));
+      if (focusCard) focusTarget = focusCard.querySelector(allowed(restored.focusPart, ['summary', '.core-scroll', 'a', 'button.inspect-history'], 'summary'));
       if (focusTarget) focusTarget.focus({preventScroll: true});
       window.scrollTo(0, Number(restored.scroll) || 0);
     });
@@ -462,16 +546,34 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
   });
 })();
 </script>
+<script type="module" src="{{if .AssetURL}}{{.AssetURL}}{{else}}./assets/ui/dashboard.js{{end}}"></script>
 </head>
-<body>
+<body data-refresh-url="{{.RefreshURL}}" data-refresh-ms="{{.RefreshMs}}" data-refresh-label="{{.RefreshLabel}}">
+<div id="snapshot-data" hidden data-snapshot="{{json .Snapshot}}"></div>
 <header class="masthead">
-  <div><h1>pulsed</h1><p class="eyebrow">The pulse of your cluster.</p></div>
+  <div><h1>pulsed</h1><p class="eyebrow">The pulse of your cluster. <a href="{{if .PagesURL}}{{.PagesURL}}{{else}}./pages/{{end}}">Open Stasis Pages</a></p></div>
   <div class="group"><span id="refresh-state" class="muted">Auto-refresh {{.RefreshLabel}}</span><button id="pause-refresh" type="button" aria-pressed="false">Pause refresh</button><button id="refresh-now" type="button">Refresh now</button></div>
 </header>
-<div class="summary" aria-label="Cluster health">
+<div class="summary" id="cluster-summary" aria-label="Cluster health">
   <span class="fresh">online {{.Summary.Fresh}}</span><span class="stale">stale {{.Summary.Stale}}</span><span class="offline">offline {{.Summary.Offline}}</span>
   {{if .Summary.HasHot}}<span class="hot-node muted">hottest <strong>{{.Summary.Hottest}}</strong> · {{printf "%.0f" .Summary.HotCPU}}% CPU · {{printf "%.2f" .Summary.HotLoad}} load</span>{{else}}<span class="muted">No fresh nodes yet</span>{{end}}
 </div>
+<p id="snapshot-notice" class="snapshot-notice" role="status" hidden>Refresh unavailable. Showing the last snapshot; retrying automatically when refresh is enabled.</p>
+<section class="inspector" id="node-inspector" aria-label="Node inspection">
+  <div class="inspector-heading">
+    <div><p class="eyebrow">NODE INSPECTION</p><h2 id="inspect-title">CPU history</h2><p id="inspect-state" class="history-caption">Current metrics are available in the node cards below.</p></div>
+    <div class="inspector-controls">
+      <label class="control" for="inspect-node">Node<select id="inspect-node"></select></label>
+      <label class="control" for="history-window">History window<select id="history-window"><option value="60000">Last minute</option><option value="300000" selected>Last 5 minutes</option></select></label>
+      <button id="export-history" type="button" disabled>Export SVG</button>
+    </div>
+  </div>
+  <dl class="inspection-metrics"><div><dt>CPU · MEAN / PEAK CORE</dt><dd id="inspect-cpu">See node cards</dd></div><div><dt>MEMORY</dt><dd id="inspect-memory">See node cards</dd><div id="inspect-memory-meter"></div></div><div><dt>LOAD · 1m / 5m / 15m</dt><dd id="inspect-load">See node cards</dd></div></dl>
+  <div id="cpu-history" class="history-chart"></div>
+  <div class="history-legend" aria-label="CPU history legend"><span>Mean CPU</span><span class="peak">Peak logical CPU</span></div>
+  <p id="history-note" class="history-caption">CPU trends use recent readings observed by this peer. Enable JavaScript to inspect graphs.</p>
+  <p id="history-source" class="history-caption">Up to five minutes of history; resets on restart and changes with the serving peer.</p>
+</section>
 <section class="toolbar" aria-label="Dashboard controls">
   <div>
     <div class="group view-controls">
@@ -519,11 +621,12 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
       </div></div></details>{{end}}
     {{end}}
     {{if .Version}}<p class="version">{{.Version}}</p>{{end}}
+    <button class="inspect-history" type="button" aria-pressed="false" aria-label="Inspect history for {{.Name}}">Inspect history</button>
   </article>
   {{end}}
   </div>
   <div class="empty" id="empty-state" {{if .Nodes}}hidden{{end}}><p>No nodes to show. Check your filters or wait for a heartbeat.</p><button id="reset-filters" type="button">Clear filters</button></div>
 </main>
-<footer>{{.BestHint}} · Node names with links open that peer’s view.<noscript> JavaScript is disabled. Reload the page for new readings; core details still work.</noscript></footer>
+<footer><span id="best-hint">{{.BestHint}}</span> · Node names with links open that peer’s view.<noscript> JavaScript is disabled. Reload the page for new readings; core details still work.</noscript></footer>
 </body>
 </html>

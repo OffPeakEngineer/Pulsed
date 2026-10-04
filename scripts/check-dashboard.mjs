@@ -1,5 +1,7 @@
 // Optional browser regression check; see docs/05_building/README.md.
-const {chromium} = await import(process.env.PULSED_PLAYWRIGHT_MODULE || 'playwright');
+import {pathToFileURL} from 'node:url';
+const playwrightModule = process.env.PULSED_PLAYWRIGHT_MODULE;
+const {chromium} = await import(playwrightModule ? pathToFileURL(playwrightModule).href : 'playwright');
 import assert from 'node:assert/strict';
 const browser = await chromium.launch({executablePath:process.env.PULSED_CHROME,headless:true});
 const baseURL = process.env.PULSED_PREVIEW_URL || 'http://127.0.0.1:4319/dashboard.html';
@@ -9,7 +11,25 @@ try {
  const page = await browser.newPage();
  const errors=[]; page.on('pageerror',e=>errors.push(e.message));
  await page.goto(baseURL);
+ await page.waitForFunction(()=>document.documentElement.classList.contains('versytl-ready'));
  await page.getByRole('button',{name:'Pause refresh',exact:true}).click();
+ assert.equal(await page.locator('#cpu-history svg').count(),1);
+ await page.locator('[data-name="compute-192"] .inspect-history').click();
+ assert.equal(await page.locator('#inspect-node').inputValue(),'compute-192');
+ assert.equal(await page.locator('#inspect-title').textContent(),'compute-192');
+ await page.locator('#history-window').selectOption('60000');
+ assert.match(await page.locator('#history-note').textContent(),/observed readings/);
+ const exported=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Export SVG',exact:true}).click();
+ const download=await exported;
+ const content=await (await import('node:fs/promises')).readFile(await download.path(),'utf8');
+ assert.match(content,/metadata id="stasis-page"/);
+ assert.match(content,/@versytl\/shipkit\/dashboard-widget/);
+ assert.match(content,/compute-192 CPU history/);
+ await page.locator('#inspect-node').selectOption('rack-07');
+ assert.match(await page.locator('#history-note').textContent(),/No CPU history/);
+ assert(await page.locator('#export-history').isDisabled());
+ await page.locator('#inspect-node').selectOption('compute-192');
  const sizes=[];
  for (const width of [320,390,768,1024,1440,2560]) {
   await page.setViewportSize({width,height:900});
@@ -30,11 +50,33 @@ try {
  assert((await detail.boundingBox()).height<=280);
  assert.equal(await detail.locator('.core-reading').count(),1024);
  await detail.evaluate(el=>{el.scrollTop=700;});
+ await page.evaluate(()=>{window.pulsedUpdates=0;document.addEventListener('pulsed:snapshot',()=>window.pulsedUpdates++);window.documentIdentity=crypto.randomUUID();});
+ const documentIdentity=await page.evaluate(()=>window.documentIdentity);
+ await page.route('**/dashboard.html*',async route=>{
+  const response=await route.fetch();
+  const html=await page.evaluate(source=>{
+   const next=new DOMParser().parseFromString(source,'text/html');
+   const seed=next.getElementById('snapshot-data');
+   const snapshot=JSON.parse(seed.dataset.snapshot);
+   snapshot.nodes.find(node=>node.Name==='compute-192').CPUAvg=74;
+   seed.dataset.snapshot=JSON.stringify(snapshot);
+   const card=next.querySelector('[data-name="compute-192"]');
+   card.dataset.cpuAvg='74.000';
+   card.querySelector('[aria-label="CPU summary"] strong').innerHTML='74<small>% avg</small>';
+   return next.documentElement.outerHTML;
+  },await response.text());
+  await route.fulfill({response,body:html});
+ },{times:1});
  await page.getByRole('button',{name:'Refresh now',exact:true}).click();
- await page.waitForLoadState('load');
+ await page.waitForFunction(()=>window.pulsedUpdates>0);
+ assert.equal(await page.evaluate(()=>window.documentIdentity),documentIdentity,'same-view refresh replaced the document');
  await page.waitForFunction(()=>document.querySelector('[data-name^="large-host"] details').open);
  assert.equal(await detail.evaluate(el=>el.scrollTop),700);
  assert.equal(await page.getByRole('button',{name:'Resume refresh',exact:true}).count(),1);
+ assert.equal(await page.locator('#inspect-node').inputValue(),'compute-192');
+ assert.equal(await page.locator('#history-window').inputValue(),'60000');
+ assert.match(await page.locator('#inspect-cpu').textContent(),/^74\.0% mean/);
+ assert.equal(await page.locator('[data-name="compute-192"]').getAttribute('data-cpu-avg'),'74.000');
  await page.locator('#node-search').fill('compute-192');
  assert.equal(await page.locator('.cell:visible').count(),1);
  await page.locator('#node-search').fill('no-match');
@@ -74,10 +116,10 @@ try {
  if (output) await mobile.screenshot({path:output+'/mobile-touch.png',fullPage:true});
  await phone.close();
 
- // Same-origin refresh must fetch a new document even if only view state changes.
+ // Same-origin refresh fetches fresh snapshots while retaining the document.
  const auto = await browser.newPage();
  const documents=[];
- auto.on('request',request=>{if(request.isNavigationRequest()) documents.push(request.url());});
+ auto.on('request',request=>{if(request.url().split('#')[0].includes('dashboard.html') || request.url().split('#')[0]===baseURL) documents.push(request.url());});
  await auto.goto(baseURL);
  await auto.waitForTimeout(3600);
  assert(documents.length>=2,'automatic refresh did not request a new document');
@@ -109,5 +151,15 @@ try {
  assert.equal(await fallback.locator('[data-name="compute-192"] .core-reading').count(),192);
  assert(await fallback.locator('[data-name="compute-192"] .core-scroll').isVisible());
  assert.deepEqual(errors,[]);
- console.log(JSON.stringify({sizes,errors,checks:'layout, bounded 1024-core detail, refresh state, search, filters, theme'},null,2));
+ const failed=await browser.newPage();
+ await failed.goto(baseURL);
+ await failed.getByRole('button',{name:'Pause refresh',exact:true}).click();
+ await failed.route('**/dashboard.html*',route=>route.fulfill({status:503,body:'temporarily unavailable'}),{times:1});
+ await failed.getByRole('button',{name:'Refresh now',exact:true}).click();
+ await failed.locator('#snapshot-notice').waitFor({state:'visible'});
+ assert.equal(await failed.locator('.cell').count(),12,'failed refresh discarded last snapshot');
+ assert.equal(await failed.getByRole('button',{name:'Resume refresh',exact:true}).count(),1);
+ await failed.getByRole('button',{name:'Refresh now',exact:true}).click();
+ await failed.locator('#snapshot-notice').waitFor({state:'hidden'});
+ console.log(JSON.stringify({sizes,errors,checks:'Versytl charts, SVG export, missing history, layout, bounded 1024-core detail, in-place refresh state, search, filters, theme'},null,2));
 } finally { await browser.close(); }

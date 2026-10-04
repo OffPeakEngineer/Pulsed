@@ -14,6 +14,8 @@ deployment paths.
 - **Cluster htop view**: CPU, memory, load, freshness, and offline status for every known node.
 - **Responsive node cards**: compact summaries, searchable nodes, two display
   densities, and expandable core readings that stay bounded on large machines.
+- **Versytl node inspector**: select a node, inspect recent mean/peak CPU trends,
+  and export the graph as a portable Stasis SVG.
 - **Hot-potato refresh**: a busy node can bake a lower-load peer into the next browser refresh.
 - **Peer rebasing**: node links point at that node's own HTTP address, so the browser moves to the selected peer.
 - **Zero-config LAN discovery**: nodes discover peers with mDNS.
@@ -67,8 +69,22 @@ scrollable panel. Compact density hides the bands and reduces card spacing.
 Search by node name, sort by a metric, and hide stale or offline nodes. Appearance
 contains the existing themes and color palettes. **Pause refresh** holds the
 current snapshot; **Refresh now** requests a new one. Automatic refresh and peer
-links carry filters, density, expanded panels, and scroll position between views.
+links carry filters, density, selected node, history window, expanded panels,
+and scroll position between views. Same-view refreshes update in place.
 Keyboard interaction defers automatic refresh until focus leaves the control.
+
+**Inspect history** selects a node without moving to its HTTP server. The CPU
+chart shows mean usage and the busiest logical CPU on a fixed 0–100% scale, with
+one-minute and five-minute windows. Gaps longer than the heartbeat TTL remain
+disconnected. **Export SVG** saves a Stasis-compatible document with Versytl
+scene/component metadata and the displayed observations.
+
+History contains readings actually observed by the serving process, sampled
+every two seconds and bounded to 150 points per node, five minutes, and 1,024
+tracked nodes. It starts accumulating when the web server starts, resets on
+restart, and switches to the destination peer's available history when rebasing.
+Pulsed cannot reconstruct older CPU readings from its latest-heartbeat database.
+Missing readings remain unavailable; they are not treated as zero CPU usage.
 
 ### Daemon settings
 

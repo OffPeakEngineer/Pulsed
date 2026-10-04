@@ -70,6 +70,32 @@ Local race tests and cross-compilation do not establish that every target runs
 correctly on its native OS. Publication and token permissions are verified by
 the first real GitLab release job.
 
+## Versytl UI assets
+
+The first Versytl slice uses renderer-neutral Shipkit dashboard/progress
+factories, Scene SVG export, and Stasis's portable document package. The small
+source snapshot is pinned by commit and hash in `frontend/vendor/manifest.json`;
+it does not depend on the untracked local `versytl` symlink. Pulsed owns telemetry
+adaptation in `frontend/charts.ts` and browser inspection in `frontend/main.ts`.
+
+When changing frontend source, run:
+
+```sh
+npm ci
+npm run test:ui
+```
+
+Commit `templates/assets/ui` with its source changes. TypeScript and esbuild are
+build-only dependencies; `go build` embeds the generated browser code and requires no
+Node runtime, external asset host, or private registry. CI verifies source hashes,
+runs frontend tests, and rejects generated-asset drift. The current UI consumes
+Stasis documents; the full Nuxt Stasis Pages host and Pulsed source adapter remain
+follow-up work in `tasks/0_planning/versytl_dashboard.md`.
+
+The browser uses one bundled module, with the dashboard's query parameters on
+its relative asset URL. This preserves `pulsed_node` on query-routed proxies;
+snapshot requests also preserve the full route and node query.
+
 ## Dashboard regression checks
 
 Run `go test ./...` and `go build ./...` using the Go 1.25 toolchain used by CI.
@@ -81,7 +107,7 @@ or joining a real cluster:
 
 ```sh
 PULSED_PREVIEW_DIR=/tmp/pulsed-preview go test -run TestDashboardResponsiveFixtures
-python3 -m http.server 4319 --bind 127.0.0.1 --directory /tmp/pulsed-preview
+PULSED_PREVIEW_DIR=/tmp/pulsed-preview PULSED_PREVIEW_PORT=4319 node scripts/preview-dashboard.cjs
 ```
 
 Open `http://127.0.0.1:4319/dashboard.html`. This contains synthetic data, including
@@ -100,7 +126,11 @@ node scripts/check-dashboard.mjs
 Set `PULSED_CHROME` to your local Chrome/Chromium executable, or omit it if
 Playwright's bundled Chromium is installed. `PULSED_SCREENSHOTS` is optional.
 The script checks widths from 320 to 2,560 pixels in both densities, expanded
-core bounds, filtering, refresh/pause/resume, state transfer between origins,
+core bounds, Versytl charts, SVG downloads, missing history, filtering,
+in-place refresh/pause/resume, state transfer between origins,
 blocked storage, and native core disclosure with JavaScript disabled. Touch
 layouts also check 44-pixel control targets, readable phone inputs, and expanded
 CPU details without horizontal scrolling in portrait and landscape layouts.
+
+The fixture includes synthetic CPU observations and an intentional gap. It
+verifies presentation and browser behavior without joining a real cluster.
