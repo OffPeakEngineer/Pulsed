@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>pulsed · cluster pulse</title>
+<link rel="icon" type="image/png" href="{{if .LogoURL}}{{.LogoURL}}{{else}}./assets/branding/pulsed-logo.png{{end}}">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -226,7 +227,8 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 }
 .masthead { justify-content: space-between; margin-bottom: 22px; }
 h1 { font-size: 26px; letter-spacing: -1.5px; line-height: 1.2; }
-h1::before { content: '▰ '; color: var(--fresh); }
+.pulsed-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.pulsed-logo { display: block; flex: 0 0 112px; width: 112px; height: 64px; object-fit: cover; }
 .eyebrow, .muted, .age, .metric-label, .section-heading { color: var(--muted); }
 .eyebrow { font-size: 12px; margin-top: 5px; }
 .summary { padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 18px; gap: 10px 22px; }
@@ -562,7 +564,7 @@ button:disabled { cursor: default; opacity: .6; }
 <body data-refresh-url="{{.RefreshURL}}" data-refresh-ms="{{.RefreshMs}}" data-refresh-label="{{.RefreshLabel}}">
 <div id="snapshot-data" hidden data-snapshot="{{json .Snapshot}}"></div>
 <header class="masthead">
-  <div><h1>pulsed</h1><p class="eyebrow">The pulse of your cluster. <a id="open-pages" href="{{if .PagesURL}}{{.PagesURL}}{{else}}./pages/{{end}}">Open Stasis Pages</a></p></div>
+  <div class="pulsed-brand"><img class="pulsed-logo" src="{{if .LogoURL}}{{.LogoURL}}{{else}}./assets/branding/pulsed-logo.png{{end}}" alt="" width="112" height="64"><div><h1>pulsed</h1><p class="eyebrow">The pulse of your cluster. <a id="open-pages" href="{{if .PagesURL}}{{.PagesURL}}{{else}}./pages/{{end}}">Open Stasis Pages</a></p></div></div>
   <div class="group"><span id="refresh-state" class="muted">Auto-refresh {{.RefreshLabel}}</span><button id="pause-refresh" type="button" aria-pressed="false">Pause refresh</button><button id="refresh-now" type="button">Refresh now</button></div>
 </header>
 <div class="summary" id="cluster-summary" aria-label="Cluster health">

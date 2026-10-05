@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"math"
 	"net/http"
 	"net/url"
@@ -575,6 +576,7 @@ type pageData struct {
 	Snapshot     dashboardSnapshot
 	AssetURL     string
 	PagesURL     string
+	LogoURL      string
 }
 
 type dashboardSnapshot struct {
@@ -589,16 +591,17 @@ func makeHandler(db *pebble.DB, selfName string) http.HandlerFunc {
 }
 
 func makeHandlerWithHistory(db *pebble.DB, selfName string, history *cpuHistory) http.HandlerFunc {
-	assets := http.FileServer(http.FS(templateFS))
+	assetFS, _ := fs.Sub(templateFS, "templates/assets")
+	assets := http.FileServer(http.FS(assetFS))
 	pages := makePagesHandler()
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/pages/") || strings.HasSuffix(r.URL.Path, "/pages") {
 			pages.ServeHTTP(w, r)
 			return
 		}
-		if i := strings.Index(r.URL.Path, "/assets/ui/"); i >= 0 {
+		if i := strings.Index(r.URL.Path, "/assets/"); i >= 0 {
 			assetRequest := r.Clone(r.Context())
-			assetRequest.URL.Path = "/templates" + r.URL.Path[i:]
+			assetRequest.URL.Path = strings.TrimPrefix(r.URL.Path[i:], "/assets")
 			assets.ServeHTTP(w, assetRequest)
 			return
 		}
@@ -648,6 +651,7 @@ func makeHandlerWithHistory(db *pebble.DB, selfName string, history *cpuHistory)
 			BestHint:     bestHint,
 			Summary:      summarizeCluster(nodes),
 			AssetURL:     "." + pageURL("/assets/ui/dashboard.js", r.URL.Query()),
+			LogoURL:      "." + pageURL("/assets/branding/pulsed-logo.png", r.URL.Query()),
 			PagesURL:     "." + pageURL("/pages/", r.URL.Query()),
 			Snapshot: dashboardSnapshot{
 				GeneratedAt: now.UnixMilli(), ServingNode: selfName,

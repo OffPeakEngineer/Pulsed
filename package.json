@@ -22,7 +22,7 @@
   "scripts": {
     "build:pages": "npm run build:ui && node scripts/build-pages.mjs",
     "typecheck:pages": "node scripts/typecheck-pages.mjs",
-    "build:ui": "node scripts/check-versytl-vendor.mjs && tsc -p frontend/tsconfig.json && esbuild frontend/main.ts --bundle --format=esm --target=es2022 --outfile=templates/assets/ui/dashboard.js --log-level=warning",
+    "build:ui": "node scripts/build-branding.mjs && node scripts/check-versytl-vendor.mjs && tsc -p frontend/tsconfig.json && esbuild frontend/main.ts --bundle --format=esm --target=es2022 --outfile=templates/assets/ui/dashboard.js --log-level=warning",
     "test:ui": "npm run build:ui && node --test frontend/test/*.test.mjs",
     "audit": "npm audit --audit-level=high",
     "release": "semantic-release"

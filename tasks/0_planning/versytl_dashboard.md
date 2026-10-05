@@ -137,14 +137,56 @@ exports retain Shipkit component and Stasis page metadata; history tests cover
 deduplication, time/point/node bounds, invalid readings, and concurrent capture.
 These checks do not establish a deployed result on the user's cluster.
 
-Race tests are unsupported on the Windows ARM64 host; the Linux CI race job
-remains required. The existing npm audit gate currently reports 14 high and one
+Native race tests are unsupported on Windows ARM64; a local Linux ARM64 WSL
+race run now passes. The hosted Linux CI race job remains required. The existing
+npm audit gate reported 14 high and one
 moderate finding in the first slice's release-tool dependencies. After adding
 the Nuxt build tooling and applying compatible patches, 21 high and one moderate
 remain. Force fixes suggest breaking downgrades and were not applied; the audit
 gate still needs separate dependency remediation.
 
-## Related
+## v1.8.0 release preparation
+
+Remote tags were checked on 2026-10-04: the latest is `v1.7.0`. The installed
+semantic-release commit analyzer classifies the two subsequent feature commits
+as a minor release, making `v1.8.0` the expected next stable version. Keep version
+selection in semantic-release; do not create a manual stable tag from this plan.
+
+Draft release notes:
+
+- Add embedded Versytl Stasis Overview, Node detail, and CPU History pages, with
+  Shipkit cards, gauges, progress meters, and portable SVG export.
+- Retain up to five minutes of CPU mean/peak observations on the serving peer,
+  with gaps, missing data, and process-local retention shown explicitly.
+- Add node search, sorting, density, themes, pause/manual refresh, core inspection,
+  and failure recovery while retaining the classic dashboard.
+- Preserve operator preferences, routed peer identity, and reverse-proxy prefixes
+  across refresh and navigation; improve keyboard and mobile usability.
+- Integrate the supplied Pulsed logo and browser icon. All assets stay embedded
+  in the single executable, with no Node runtime or external asset host required.
+
+Release candidate binaries use `v1.8.0-rc.1` for local review and testing. Their
+six OS/architecture filenames and `checksums.sha256` match the existing build
+script and GitLab Generic Package Registry release manifest. Release notes are
+draft content; no tag or publication is created by preparation.
+
+Validation and remaining gates:
+
+- Local Go tests/vet, nine frontend tests, Pages typechecking, and both browser
+  suites pass, including the new artwork in light/dark and mobile layouts.
+- The npm audit gate still fails with 21 high and one moderate finding in build
+  and release dependencies. Latest published `braces` and `node-forge` remain
+  covered by their advisories; npm's offered force fixes downgrade
+  semantic-release to 15.14.0 and Nuxt to 3.15.1. Do not weaken the gate or apply
+  those breaking downgrades as part of branding.
+- Linux ARM64 WSL race testing and vet pass using the CI-pinned Go 1.25.11 toolchain.
+  Repeated frontend builds produce identical generated assets.
+- All six `v1.8.0-rc.1` builds completed through `deploy/release/build-all.sh`;
+  `sha256sum -c checksums.sha256` verified every binary. Candidates are in `dist/`.
+- Hosted CI and stable publication remain pending. Resolve the dependency audit
+  gate before publishing; no stable tag or release was created by this work.
+
+## Related planning
 
 - `history_and_navigable_dashboard.md`
 - `pluggable_dashboard_themes.md`

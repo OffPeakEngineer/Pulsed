@@ -230,6 +230,10 @@ Both interfaces and their assets are embedded in the same executable. Vue and
 Nuxt are used to build the Stasis pages; the running daemon needs no Node server
 or external asset service.
 
+The supplied Pulsed logo appears in both dashboard headers and browser icons.
+Its original design, SVG, and PNG export are in `assets/`. The UI uses the PNG
+export so the wordmark renders consistently without an installed design font.
+
 pulsed uses peer-to-peer state sharing and a small local store internally, but those are implementation details for the dashboard. It is not intended to be a general-purpose distributed database or key-value API.
 
 ## Requirements

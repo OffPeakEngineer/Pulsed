@@ -103,6 +103,13 @@ The same applies to `/pages/`, including reverse-proxy prefixes. The server
 rewrites the static base URL and initial links for the incoming route. There
 are no CDN, package-registry, or pipeline-API calls from either dashboard.
 
+Branding comes from `assets/Pulsed Logo.png`. `build:ui` copies it verbatim into
+the embedded classic assets; `build:pages` embeds it in the header CSS and copies
+the browser icon. The SVG contains live Gill Sans text, so the PNG avoids font
+substitution on systems without that font. Keep the supplied `.afdesign`, SVG,
+and PNG sources together when changing the artwork. Header logos are decorative
+alongside the visible Pulsed name; asset links retain routed peer queries.
+
 ### Pulsed Pages source
 
 `frontend/pulsed-source.ts` registers `pulsed/snapshot@1` with Bridge. The host

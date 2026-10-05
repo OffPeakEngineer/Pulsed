@@ -19,11 +19,15 @@ import (
 func TestDashboardServesEmbeddedVersytlThroughProxyPrefixes(t *testing.T) {
 	db := openTestDB(t)
 	handler := makeHandler(db, "node-a")
-	for _, path := range []string{"/assets/ui/dashboard.js", "/nested/assets/ui/dashboard.js?pulsed_node=node-a"} {
+	for _, asset := range []struct{ path, contentType string }{
+		{"/assets/ui/dashboard.js", "javascript"},
+		{"/nested/assets/ui/dashboard.js?pulsed_node=node-a", "javascript"},
+		{"/nested/assets/branding/pulsed-logo.png?pulsed_node=node-a", "image/png"},
+	} {
 		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, httptest.NewRequest("GET", path, nil))
-		if rr.Code != 200 || !strings.Contains(rr.Header().Get("Content-Type"), "javascript") {
-			t.Fatalf("asset %s: status %d, type %s", path, rr.Code, rr.Header().Get("Content-Type"))
+		handler.ServeHTTP(rr, httptest.NewRequest("GET", asset.path, nil))
+		if rr.Code != 200 || !strings.Contains(rr.Header().Get("Content-Type"), asset.contentType) {
+			t.Fatalf("asset %s: status %d, type %s", asset.path, rr.Code, rr.Header().Get("Content-Type"))
 		}
 	}
 	rr := httptest.NewRecorder()

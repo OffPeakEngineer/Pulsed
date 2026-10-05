@@ -14,7 +14,7 @@ http.createServer((request, response) => {
   if (!file.startsWith(root + path.sep)) { response.writeHead(403).end(); return; }
   fs.readFile(file, (error, content) => {
     if (error) { response.writeHead(404).end(); return; }
-    response.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.json') ? 'application/json' : 'text/html; charset=utf-8');
+    response.setHeader('Content-Type', file.endsWith('.png') ? 'image/png' : file.endsWith('.js') ? 'text/javascript; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.json') ? 'application/json' : 'text/html; charset=utf-8');
     if (file.endsWith('pages' + path.sep + 'index.html')) {
       const base = url.pathname.slice(0, url.pathname.lastIndexOf('/pages/')) + '/pages/';
       content = content.toString().replace(/(src|href)="(\/pages\/[^"#]*)"/g, (_, attribute, asset) => {
