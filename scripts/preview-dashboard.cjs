@@ -14,6 +14,14 @@ http.createServer((request, response) => {
   if (!file.startsWith(root + path.sep)) { response.writeHead(403).end(); return; }
   fs.readFile(file, (error, content) => {
     if (error) { response.writeHead(404).end(); return; }
+    if (url.pathname.includes('/api/v1/')) {
+      const data = JSON.parse(content), requested = url.searchParams.getAll('include_cores');
+      for (const node of data.nodes) { if (!requested.includes(node.name)) delete node.cpu.cores; }
+      for (const [name, points] of Object.entries(data.history)) {
+        if (name !== url.searchParams.get('history_cores')) for (const point of points) delete point.coreTenths;
+      }
+      content = JSON.stringify(data);
+    }
     response.setHeader('Content-Type', file.endsWith('.png') ? 'image/png' : file.endsWith('.js') ? 'text/javascript; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.json') ? 'application/json' : 'text/html; charset=utf-8');
     if (file.endsWith('pages' + path.sep + 'index.html')) {
       const base = url.pathname.slice(0, url.pathname.lastIndexOf('/pages/')) + '/pages/';

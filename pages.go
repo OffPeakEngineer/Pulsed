@@ -58,11 +58,15 @@ type apiSnapshot struct {
 
 func makeAPISnapshot(nodes []NodeStats, history *cpuHistory, selfName string, r *http.Request, now time.Time) apiSnapshot {
 	summary := summarizeCluster(nodes)
+	requestedCores := make(map[string]bool)
+	for _, name := range r.URL.Query()["include_cores"] {
+		requestedCores[name] = true
+	}
 	snapshot := apiSnapshot{
 		SchemaVersion: 1, GeneratedAt: now.UnixMilli(), ServingNode: selfName,
 		RefreshMs: computeRefreshIntervalMs(nodes), HistoryWindowMs: cpuHistoryWindow.Milliseconds(),
 		Summary: apiSummary{summary.Fresh, summary.Stale, summary.Offline, summary.Hottest},
-		Nodes:   make([]apiNode, 0, len(nodes)), History: history.snapshot(),
+		Nodes:   make([]apiNode, 0, len(nodes)), History: history.snapshotWithCores(r.URL.Query().Get("history_cores")),
 	}
 	if peer := findLowerLoadRedirect(nodes, selfName); peer != nil {
 		snapshot.RefreshURL = pageURL(peer.WebURL, displayQuery(r))
@@ -87,7 +91,7 @@ func makeAPISnapshot(nodes []NodeStats, history *cpuHistory, selfName string, r 
 			}
 			if validCPU {
 				node.CPU.Average, node.CPU.Peak = &cell.CPUAvg, &cell.CPUMax
-				if r.URL.Query().Get("include_cores") == s.Name {
+				if requestedCores[s.Name] {
 					node.CPU.Cores = cell.Cores
 				}
 			}

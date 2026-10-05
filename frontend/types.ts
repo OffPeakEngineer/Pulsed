@@ -1,4 +1,4 @@
-export type Observation = { at: number; average: number; peak: number; ttlSeconds: number }
+export type Observation = { at: number; average: number; peak: number; ttlSeconds: number; cores?: number[] }
 export type Node = {
   Name: string; State: 'fresh' | 'stale' | 'offline'; StatusLabel: string
   CPUAvg: number; CPUMax: number; CoreCount: number; MemPct: number; MemLabel: string

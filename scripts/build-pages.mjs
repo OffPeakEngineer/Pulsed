@@ -27,7 +27,7 @@ const target = join(root, 'templates/assets/pages');
 if (!target.startsWith(root + '\\') && !target.startsWith(root + '/')) throw new Error('Output escaped the workspace');
 await rm(target, { recursive: true, force: true });
 await mkdir(target, { recursive: true });
-await copyFile(join(root, 'assets/Pulsed Logo.png'), join(target, 'pulsed-logo.png'));
+await copyFile(join(root, 'templates/assets/branding/pulsed-logo.png'), join(target, 'pulsed-logo.png'));
 let markup = await readFile(join(generated, 'index.html'), 'utf8');
 const entryPattern = /<script\b(?=[^>]*\btype="module")(?=[^>]*\bsrc="([^"]+)")[^>]*><\/script>/g;
 const entries = [...markup.matchAll(entryPattern)];

@@ -50,7 +50,8 @@ export function parsePulsedSnapshot(value) {
     const history = Object.assign(Object.create(null), Object.fromEntries(Object.entries(record(root.history)).map(([name, values]) => [name,
         values === null ? [] : array(values).map(value => {
             const point = record(value);
-            return { at: number(point.at), average: number(point.average, 0, 100), peak: number(point.peak, 0, 100), ttlSeconds: number(point.ttlSeconds, 1) };
+            const cores = point.coreTenths === undefined ? undefined : array(point.coreTenths).map(value => number(value, 0, 1000) / 10);
+            return { at: number(point.at), average: number(point.average, 0, 100), peak: number(point.peak, 0, 100), ttlSeconds: number(point.ttlSeconds, 1), ...(cores ? { cores } : {}) };
         }).sort((a, b) => a.at - b.at),
     ])));
     return {
@@ -85,15 +86,20 @@ export const pulsedSource = {
     },
 };
 export const pulsedBridge = createBridgeRegistry([pulsedSource]);
-export function snapshotURL(href, includeCores = '') {
+export function snapshotURL(href, includeCores = '', historyCores = '') {
     const url = new URL(href);
     const index = url.pathname.lastIndexOf('/pages/');
     const prefix = index >= 0 ? url.pathname.slice(0, index) : url.pathname.replace(/\/[^/]*$/, '');
     url.pathname = prefix + '/api/v1/snapshot';
     url.hash = '';
     url.searchParams.delete('include_cores');
-    if (includeCores)
-        url.searchParams.set('include_cores', includeCores);
+    for (const name of typeof includeCores === 'string' ? [includeCores] : includeCores) {
+        if (name)
+            url.searchParams.append('include_cores', name);
+    }
+    url.searchParams.delete('history_cores');
+    if (historyCores)
+        url.searchParams.set('history_cores', historyCores);
     return url.pathname + url.search;
 }
 export function pagesURL(base, currentHref) {
@@ -103,7 +109,7 @@ export function pagesURL(base, currentHref) {
     if (!url.pathname.endsWith('/pages/'))
         url.pathname = new URL('./pages/', url).pathname;
     const current = new URL(currentHref);
-    for (const key of ['theme', 'palette', 'focus', 'window', 'q', 'sort', 'density', 'hide', 'paused']) {
+    for (const key of ['theme', 'palette', 'focus', 'window', 'q', 'sort', 'density', 'hide', 'paused', 'traces', 'coregroup']) {
         if (current.searchParams.has(key))
             url.searchParams.set(key, current.searchParams.get(key));
     }

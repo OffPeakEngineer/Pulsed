@@ -1418,7 +1418,39 @@ function decodeXml(value) {
   return value.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 }
 
+// frontend/core-charts.ts
+function latestCoreUsage(points, core) {
+  for (let i = points.length - 1; i >= 0; i--) {
+    const value = points[i].cores?.[core];
+    if (value !== void 0) return value;
+  }
+  return 0;
+}
+function coreColor(index, usage, theme = "dark") {
+  if (usage <= 1) return theme === "dark" ? "#46505b" : "#65707c";
+  const saturation = Math.round(Math.min(100, usage) * 0.85);
+  const lightness = theme === "dark" ? Math.round(31 + Math.min(100, usage) * 0.31) : 38;
+  return `hsl(${Math.round(index * 137.508 % 360)} ${saturation}% ${lightness}%)`;
+}
+
 // frontend/charts.ts
+function coreObservationCommands(points, core, start, end) {
+  let previous;
+  const commands = [];
+  for (const point of points) {
+    if (point.at < start || point.at > end) continue;
+    const value = point.cores?.[core];
+    if (value === void 0) {
+      previous = void 0;
+      continue;
+    }
+    const gap = !previous || point.at - previous.at > previous.ttlSeconds * 1e3 || previous.cores?.length !== point.cores?.length;
+    const pixel = (value2) => Math.round(value2 * 100) / 100;
+    commands.push({ command: gap ? "move" : "line", x: pixel(38 + (point.at - start) / Math.max(1, end - start) * 484), y: pixel(172 - value / 100 * 126) });
+    previous = point;
+  }
+  return commands;
+}
 function observationCommands(points, key, start, end) {
   let previous;
   return points.filter((point) => point.at >= start && point.at <= end).map((point) => {
@@ -1437,6 +1469,10 @@ function cpuHistoryDocument(options) {
   const height = Math.max(240, width * 0.36);
   const start = options.end - options.windowMs;
   const points = options.points.filter((point) => point.at >= start && point.at <= options.end);
+  const perCore = options.mode === "cores";
+  const count = Math.max(0, ...points.map((point) => point.cores?.length || 0));
+  const first = Math.min(count, Math.max(0, options.coreStart || 0));
+  const indices = Array.from({ length: Math.min(count - first, options.coreLimit || count) }, (_, i) => first + i);
   const card = createTrendChartNode({
     id,
     bounds: { x: 0, y: 0, width, height },
@@ -1453,20 +1489,32 @@ function cpuHistoryDocument(options) {
       const chartWidth = 560;
       const scale = (width - 20) / chartWidth;
       const children = node.children.filter((child) => child.id !== `${id}:latest`).map(adapt);
-      for (const [key, color] of [["peak", options.colors.peak], ["average", options.colors.accent]]) {
+      const series = perCore ? indices.map((core) => {
+        const usage = latestCoreUsage(points, core);
+        return { key: `core-${core}`, core, usage, color: coreColor(core, usage, options.theme), commands: coreObservationCommands(points, core, start, options.end) };
+      }).sort((a, b) => a.usage - b.usage) : ["peak", "average"].map((key) => ({ key, core: void 0, color: key === "peak" ? options.colors.peak : options.colors.accent, commands: observationCommands(points, key, start, options.end) }));
+      for (const { key, core, color, commands } of series) {
         children.push({
           id: `${id}:${key}`,
           kind: "path",
-          commands: observationCommands(points, key, start, options.end),
-          stroke: { color, width: 2.5, lineCap: "round", lineJoin: "round" }
+          commands,
+          stroke: { color, width: perCore ? 1.3 : 2.5, lineCap: "round", lineJoin: "round" },
+          ...core !== void 0 ? { metadata: { core } } : {}
         });
         for (const [index, point] of points.entries()) {
+          const value = core === void 0 ? point[key] : point.cores?.[core];
+          if (value === void 0) continue;
+          if (perCore && commands.length > 1) {
+            const previous = points[index - 1], next = points[index + 1];
+            const connected = (other) => other?.cores?.[core] !== void 0 && other.cores.length === point.cores?.length && Math.abs(other.at - point.at) <= Math.min(other.ttlSeconds, point.ttlSeconds) * 1e3;
+            if (connected(previous) || connected(next)) continue;
+          }
           children.push({
             id: `${id}:${key}:sample:${index}`,
             kind: "ellipse",
             radiusX: 2,
             radiusY: 2,
-            transform: { x: 38 + (point.at - start) / options.windowMs * 484, y: 172 - point[key] / 100 * 126, rotation: 0 },
+            transform: { x: 38 + (point.at - start) / options.windowMs * 484, y: 172 - value / 100 * 126, rotation: 0 },
             fill: { color }
           });
         }
@@ -1495,13 +1543,22 @@ function cpuHistoryDocument(options) {
     children: [adapt(card)],
     components: {
       "@pulsed/telemetry/cpu-history": {
-        version: 1,
-        data: { node: options.name, servingNode: options.servingNode, start, end: options.end, points, units: "percent", retention: "peer-local, process memory" }
+        version: perCore ? 2 : 1,
+        data: {
+          node: options.name,
+          servingNode: options.servingNode,
+          start,
+          end: options.end,
+          points: points.map(({ cores, ...point }) => ({ ...point, ...perCore && cores ? { cores: indices.map((index) => cores[index] ?? null) } : {} })),
+          ...perCore ? { coreIndices: indices, colorBy: "latest observed usage; idle grey, saturation increases with usage" } : {},
+          units: "percent",
+          retention: "peer-local, process memory"
+        }
       }
     }
   };
-  const description = `${points.length} observed CPU readings on ${options.servingNode}. Mean and peak logical CPU, 0 to 100 percent. Gaps longer than heartbeat TTL are disconnected.`;
-  const svg = sceneToSvg(createScene(width, height, root)).replace(/<svg\b[^>]*>/, (opening) => `${opening}
+  const description = `${points.length} observed CPU readings on ${options.servingNode}. ${perCore ? `${indices.length} logical CPU traces; idle grey, saturation reflects latest activity` : "Mean and peak logical CPU"}, 0 to 100 percent. Missing readings, CPU count changes, and gaps longer than heartbeat TTL are disconnected.`;
+  const svg = sceneToSvg(createScene(width, height, root), { nodeAttributes: (node) => node.metadata?.core === void 0 ? void 0 : { "data-core-trace": node.metadata.core, "aria-label": `CPU ${node.metadata.core}`, role: "img" } }).replace(/<svg\b[^>]*>/, (opening) => `${opening}
 <title>${escapeXml(options.name + " CPU history")}</title>
 <desc>${escapeXml(description)}</desc>`);
   return serializeStasisDocument(updateStasisDocument(parseStasisSvg(svg), {

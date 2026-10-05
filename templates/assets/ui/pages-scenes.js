@@ -1,11 +1,11 @@
 import { createCardNode } from './vendor/shipkit/cardScene.js';
-import { createProgressBarNode } from './vendor/shipkit/progressScene.js';
 import { createRadialGaugeNode, createLevelIndicatorNode } from './vendor/shipkit/dashboardScene.js';
 import { createScene } from './vendor/scene/scene.js';
 import { sceneFromSvg, sceneToSvg, escapeXml } from './vendor/scene/svg.js';
 import { stringifyScene } from './vendor/scene/serialization.js';
 import { parseStasisSvg, serializeStasisDocument, updateStasisDocument } from './vendor/stasis/index.js';
 import { cpuHistoryDocument } from './charts.js';
+import { coreBars, coreBarAttributes } from './core-charts.js';
 const ids = ['overview', 'node', 'history'];
 function text(id, value, x, y, colors, size = 13) {
     return { id, kind: 'text', text: value, fontSize: size, fill: { color: colors.text }, transform: { x, y, rotation: 0 }, fontFamily: 'ui-sans-serif, system-ui, sans-serif' };
@@ -18,7 +18,7 @@ function frame(id, title, width, height, colors, children = []) {
 function document(root, width, height, metadata, title, description, names = {}) {
     let svg = sceneToSvg(createScene(width, height, root), { nodeAttributes: node => names[node.id] ? {
             role: 'button', tabindex: 0, 'aria-label': `Inspect ${names[node.id]}`, 'data-pulsed-node': names[node.id],
-        } : undefined });
+        } : coreBarAttributes(node) });
     svg = svg.replace(/<svg\b[^>]*>/, opening => `${opening}\n<title>${escapeXml(title)}</title>\n<desc>${escapeXml(description)}</desc>`);
     return serializeStasisDocument(updateStasisDocument(parseStasisSvg(svg), { metadata }));
 }
@@ -42,23 +42,32 @@ export const pageProviders = new Map([
                 const compact = context.density === 'compact';
                 const minimum = compact ? 300 : 340;
                 const columns = Math.max(1, Math.min(compact ? 4 : 3, Math.floor((width + 14) / (minimum + 14))));
-                const gap = compact ? 8 : 14, cardWidth = (width - gap * (columns - 1)) / columns, cardHeight = 150;
+                const gap = compact ? 8 : 14, cardWidth = (width - gap * (columns - 1)) / columns;
+                const columnHeights = Array.from({ length: columns }, () => 0);
                 const names = {};
                 const cards = nodes.map((node, index) => {
                     const id = `overview-node-${index}`;
                     names[id] = node.name;
                     const cpu = node.cpu.average, memory = node.memory.percent;
+                    const bars = coreBars(`${id}-cores`, node.cpu.cores || [], cardWidth - 36, colors, false, context.theme);
+                    const barsHeight = node.cpu.cores ? bars.height : 22;
+                    const cardHeight = 162 + barsHeight;
+                    const column = index % columns, y = columnHeights[column];
+                    columnHeights[column] = y + cardHeight + gap;
                     const content = [
                         text(`${id}-status`, node.updatedAt ? `${node.state === 'fresh' ? 'online' : node.state} · ${Math.round(node.ageSeconds)}s ago` : 'offline · no heartbeat', 18, 56, colors, 12),
                         text(`${id}-cpu`, cpu === null ? 'CPU unavailable' : `CPU ${cpu.toFixed(1)}% · peak ${node.cpu.peak?.toFixed(1)}%`, 18, 81, colors),
-                        text(`${id}-memory`, memory === null ? 'Memory unavailable' : `Memory ${memory.toFixed(1)}%`, 18, 121, colors),
+                        text(`${id}-count`, `${node.cpu.count} logical CPUs`, 18, 104, colors),
+                        text(`${id}-memory`, memory === null ? 'Memory unavailable' : `Memory ${memory.toFixed(1)}%`, 18, 142 + barsHeight, colors),
                     ];
-                    if (cpu !== null)
-                        content.push(createProgressBarNode({ id: `${id}-bar`, bounds: { x: 18, y: 90, width: cardWidth - 36, height: 6 }, value: cpu / 100, fillColor: colors.accent, trackColor: colors.border }));
+                    if (node.cpu.cores)
+                        content.push({ ...bars.root, transform: { x: 18, y: 114, rotation: 0 } });
+                    else
+                        content.push(text(`${id}-cores-pending`, cpu === null ? 'Core readings unavailable' : 'Loading core bars…', 18, 125, colors, 12));
                     const card = frame(id, compactName(node.name), cardWidth, cardHeight, colors, content);
-                    return { ...card, transform: { x: index % columns * (cardWidth + gap), y: Math.floor(index / columns) * (cardHeight + gap), rotation: 0 } };
+                    return { ...card, transform: { x: column * (cardWidth + gap), y, rotation: 0 } };
                 });
-                const height = Math.max(cardHeight, Math.ceil(nodes.length / columns) * (cardHeight + gap) - gap);
+                const height = Math.max(184, ...columnHeights.map(height => height - gap));
                 return document({ id: 'overview-root', kind: 'group', children: cards }, width, height, page.metadata, 'Cluster overview', `${nodes.length} displayed nodes. Activate a node to inspect its metrics.`, names);
             } }],
     ['@pulsed/dashboard/node', { version: 1, render: (page, context) => {
@@ -88,7 +97,7 @@ export const pageProviders = new Map([
     ['@pulsed/dashboard/history', { version: 1, render: (page, context) => {
                 const svg = cpuHistoryDocument({ name: context.selected || 'Choose a node', servingNode: context.snapshot.servingNode,
                     points: context.snapshot.history[context.selected] || [], end: context.snapshot.generatedAt, windowMs: context.windowMs, width: context.width,
-                    theme: 'dark', colors: context.colors });
+                    theme: context.theme || 'dark', colors: context.colors, mode: context.historyMode, coreStart: context.coreStart, coreLimit: context.coreLimit });
                 return serializeStasisDocument(updateStasisDocument(parseStasisSvg(svg), { metadata: page.metadata }));
             } }],
 ]);
@@ -106,4 +115,15 @@ export function hydratePage(page, context) {
         }
     }
     return { svg: page.svg, supported: false };
+}
+export function nodePageWithCoreBars(svg, node, colors, theme) {
+    if (!node.cpu.cores)
+        return svg;
+    const saved = parseStasisSvg(svg), scene = sceneFromSvg(svg);
+    const bars = coreBars('export-logical-cpus', node.cpu.cores, scene.width - 36, colors, true, theme);
+    const root = { ...scene.root, children: [...scene.root.children,
+            text('export-core-count', `${node.cpu.count} logical CPUs · one bar per CPU, 0–100%`, 18, scene.height + 30, colors, 15),
+            { ...bars.root, transform: { x: 18, y: scene.height + 46, rotation: 0 } },
+        ] };
+    return document(root, scene.width, scene.height + 46 + bars.height, saved.metadata, `${node.name} metrics`, 'Current CPU, memory, and individual logical CPU usage.');
 }

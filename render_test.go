@@ -180,6 +180,16 @@ func TestDashboardResponsiveFixtures(t *testing.T) {
 		api.RefreshURL = "" // Preview fixtures never redirect to a real peer.
 		for i := range api.Nodes {
 			api.Nodes[i].CPU.Cores = nodes[i].Cores
+			for j := range api.History[nodes[i].Name] {
+				cores := make([]uint16, nodes[i].CoreCount)
+				for core := range cores {
+					// Synthetic heterogeneous activity, including genuinely idle CPUs.
+					if core%5 != 0 {
+						cores[core] = uint16((j*17 + core*37 + i*71) % 1001)
+					}
+				}
+				api.History[nodes[i].Name][j].CoreTenths = cores
+			}
 		}
 		encoded, err := json.Marshal(api)
 		if err != nil {

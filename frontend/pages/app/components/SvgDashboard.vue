@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { StasisPage } from '../../../vendor/stasis/index'
-import { hydratePage } from '../../../pages-scenes'
+import { hydratePage, nodePageWithCoreBars } from '../../../pages-scenes'
 import type { PageColors } from '../../../pages-scenes'
+import { coreBarsDocument, coreColor, latestCoreUsage } from '../../../core-charts'
 
 const props = defineProps<{ page: StasisPage }>()
 const store = useNuxtApp().$pulsed
 const { snapshot, status, fetching, paused, selected, search, sort, density, theme, hideStale, hideOffline,
-  windowMs, pageNumber, activePage, coresOpen, selectedNode, filtered, displayed, currentPage, maxPage, fallback, peer } = store
+  windowMs, pageNumber, activePage, coresOpen, historyMode, coreGroup, selectedNode, filtered, displayed, currentPage, maxPage, fallback, peer } = store
 activePage.value = props.page.id
 const host = ref<HTMLElement | null>(null), width = ref(960)
 const palette = ref<PageColors>({ accent: '#65d5ef', peak: '#facc15', surface: '#0d1d27', border: '#29414f', text: '#f1f6f7', muted: '#9bb0bc' })
@@ -32,9 +33,16 @@ watch(theme, () => nextTick(readPalette))
 const rendered = computed(() => {
   if (!snapshot.value) return { svg: props.page.svg, supported: true }
   return hydratePage(props.page, { snapshot: snapshot.value, selected: selected.value, nodes: displayed.value,
-    windowMs: windowMs.value, width: width.value, colors: palette.value, density: density.value })
+    windowMs: windowMs.value, width: width.value, colors: palette.value, density: density.value, theme: theme.value as 'dark' | 'light',
+    historyMode: historyMode.value, coreStart: coreGroup.value < 0 ? 0 : coreGroup.value * 32, coreLimit: coreGroup.value < 0 ? 0 : 32 })
 })
 const samples = computed(() => (snapshot.value?.history[selected.value] || []).filter(point => point.at >= (snapshot.value?.generatedAt || 0) - windowMs.value))
+const historyCoreCount = computed(() => Math.max(selectedNode.value?.cpu.count || 0, ...samples.value.map(point => point.cores?.length || 0)))
+const coreGroups = computed(() => Array.from({ length: Math.ceil(historyCoreCount.value / 32) }, (_, index) => ({ index, label: `CPU ${index * 32}–${Math.min(historyCoreCount.value - 1, index * 32 + 31)}` })))
+watch(coreGroups, groups => { if (snapshot.value && selectedNode.value && coreGroup.value >= groups.length) coreGroup.value = -1 })
+const coreHistorySamples = computed(() => samples.value.filter(point => point.cores?.length).length)
+const legendCores = computed(() => coreGroup.value < 0 ? [] : Array.from({ length: Math.max(0, Math.min(32, historyCoreCount.value - coreGroup.value * 32)) }, (_, i) => coreGroup.value * 32 + i))
+const barsSvg = computed(() => coreBarsDocument(selected.value, selectedNode.value?.cpu.cores || [], width.value, palette.value, theme.value as 'dark' | 'light'))
 const nodeOptions = computed(() => {
   const names = (snapshot.value?.nodes || []).map(node => node.name)
   return selected.value && !names.includes(selected.value) ? [selected.value, ...names] : names
@@ -49,7 +57,8 @@ function interact(event: MouseEvent | KeyboardEvent) {
   nextTick(() => document.getElementById('tab-node')?.focus())
 }
 function exportPage() {
-  const url = URL.createObjectURL(new Blob([rendered.value.svg], { type: 'image/svg+xml' }))
+  const svg = props.page.id === 'node' && selectedNode.value ? nodePageWithCoreBars(rendered.value.svg, selectedNode.value, palette.value, theme.value as 'dark' | 'light') : rendered.value.svg
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
   const link = document.createElement('a')
   link.href = url; link.download = `pulsed-${props.page.id}.svg`; link.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
@@ -84,6 +93,8 @@ function exportPage() {
     <div v-else class="page-controls">
       <label>Node<select v-model="selected" id="pages-node" :disabled="!nodeOptions.length"><option v-for="name in nodeOptions" :key="name" :value="name">{{ name }}</option></select></label>
       <label v-if="page.id === 'history'">Window<select v-model.number="windowMs" id="pages-window"><option :value="60000">Last minute</option><option :value="300000">Last 5 minutes</option></select></label>
+      <label v-if="page.id === 'history'">Traces<select v-model="historyMode" id="pages-traces"><option value="cores">Logical CPUs</option><option value="summary">Mean / peak</option></select></label>
+      <label v-if="page.id === 'history' && historyMode === 'cores'">Core group<select v-model.number="coreGroup" id="pages-core-group"><option :value="-1">All {{ historyCoreCount }} logical CPUs</option><option v-for="group in coreGroups" :key="group.index" :value="group.index">{{ group.label }}</option></select></label>
       <a v-if="peer" :href="peer" id="rebase-peer">View from this peer</a>
     </div>
     <div class="page-heading">
@@ -105,6 +116,9 @@ function exportPage() {
       <div><button :disabled="currentPage === 0" @click="pageNumber = currentPage - 1">Previous nodes</button><button :disabled="currentPage >= maxPage" @click="pageNumber = currentPage + 1">Next nodes</button></div>
     </div>
     <template v-if="page.id === 'node' && selectedNode">
+      <h2 class="logical-cpu-heading">{{ selectedNode.cpu.count }} logical CPUs <small>One bar per CPU · 0–100%</small></h2>
+      <div v-if="selectedNode.cpu.cores" class="pages-bar-scroll" role="region" :aria-label="'Core bar chart for ' + selected" tabindex="0" v-html="barsSvg" />
+      <p v-else class="notice">{{ selectedNode.cpu.average === null ? 'Core readings unavailable.' : 'Loading core bars…' }}</p>
       <dl class="node-facts"><div><dt>Peak logical CPU</dt><dd>{{ selectedNode.cpu.peak === null ? 'Unavailable' : selectedNode.cpu.peak.toFixed(1) + '%' }}</dd></div><div><dt>Load 1m / 5m / 15m</dt><dd>{{ selectedNode.load ? selectedNode.load.map(value => value.toFixed(2)).join(' / ') : 'Unavailable' }}</dd></div><div><dt>Memory</dt><dd>{{ selectedNode.memory.label }}</dd></div></dl>
       <details v-if="selectedNode.cpu.average !== null" :open="coresOpen" class="pages-cores" @toggle="coresOpen = ($event.target as HTMLDetailsElement).open">
         <summary>Inspect {{ selectedNode.cpu.count }} logical CPUs</summary>
@@ -115,8 +129,13 @@ function exportPage() {
       </details>
     </template>
     <div v-if="page.id === 'history'" class="history-description">
-      <div class="history-legend"><span>Mean CPU</span><span>Peak logical CPU</span></div>
-      <p>{{ samples.length ? samples.length + ' observed readings · gaps indicate missing heartbeats.' : 'No CPU history available yet. Readings appear as this peer observes heartbeats.' }}</p>
+      <div v-if="historyMode === 'summary'" class="history-legend"><span>Mean CPU</span><span>Peak logical CPU</span></div>
+      <template v-else>
+        <p>{{ historyCoreCount }} logical CPUs · {{ coreGroup < 0 ? 'all cores' : coreGroups[coreGroup]?.label }}. Idle traces settle to grey; saturation increases with the latest observed usage. Active traces draw above idle ones. Select a group to identify individual CPUs.</p>
+        <div v-if="legendCores.length" class="core-legend"><span v-for="core in legendCores" :key="core" :style="{ '--core-color': coreColor(core, latestCoreUsage(samples, core), theme as 'dark' | 'light') }">CPU {{ core }}</span></div>
+        <p v-if="!coreHistorySamples">Per-core history is collecting. Older mean / peak observations remain available in the Mean / peak view.</p>
+      </template>
+      <p>{{ samples.length ? samples.length + ' observed readings · ' + (historyMode === 'cores' ? coreHistorySamples + ' with per-core data · ' : '') + 'gaps indicate missing readings.' : 'No CPU history available yet. Readings appear as this peer observes heartbeats.' }}</p>
       <p>Observed by {{ snapshot?.servingNode || 'this peer' }} · up to five minutes · resets on restart and changes with the serving peer.</p>
     </div>
   </section>

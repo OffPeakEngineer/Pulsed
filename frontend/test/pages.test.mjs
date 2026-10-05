@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pulsedSource, pulsedBridge, parsePulsedSnapshot, pagesURL, snapshotURL, classicURL } from '../../templates/assets/ui/pulsed-source.js';
-import { authoredPage, hydratePage } from '../../templates/assets/ui/pages-scenes.js';
+import { authoredPage, hydratePage, nodePageWithCoreBars } from '../../templates/assets/ui/pages-scenes.js';
 import { parseStasisSvg } from '../../templates/assets/ui/vendor/stasis/index.js';
 import { sceneFromSvg, sceneToSvg } from '../../templates/assets/ui/vendor/scene/svg.js';
 
@@ -34,6 +34,14 @@ test('peer and resource routing preserve target identity, proxy prefix and opera
  assert.equal(api.pathname,'/proxy/api/v1/snapshot');assert.equal(api.searchParams.get('include_cores'),'constructor');assert.equal(api.searchParams.get('pulsed_node'),'a');
  assert.equal(new URL(classicURL(current),'https://cluster.example').pathname,'/proxy/');
  assert.throws(()=>pagesURL('javascript:alert(1)',current));
+ const cores=new URL(snapshotURL(current,['a','b'],'a'),'https://cluster.example');
+ assert.deepEqual(cores.searchParams.getAll('include_cores'),['a','b']);assert.equal(cores.searchParams.get('history_cores'),'a');
+});
+
+test('compact core history vectors decode without fabricating absent observations',()=>{
+ const data=parsePulsedSnapshot({...snapshot,history:{constructor:[{at:1000,average:20,peak:80,ttlSeconds:15,coreTenths:[0,123,1000]},{at:2000,average:20,peak:80,ttlSeconds:15}]}});
+ assert.deepEqual(data.history.constructor[0].cores,[0,12.3,100]);assert.equal(data.history.constructor[1].cores,undefined);
+ assert.throws(()=>parsePulsedSnapshot({...snapshot,history:{bad:[{at:1000,average:20,peak:80,ttlSeconds:15,coreTenths:[1001]}]}}));
 });
 test('portable pages retain trusted provider and Shipkit payloads after hydration',()=>{
  const context={snapshot:parsePulsedSnapshot(snapshot),selected:node.name,nodes:[node],windowMs:60000,width:960,colors};
@@ -59,4 +67,13 @@ test('unknown or unsupported page providers preserve the saved view',()=>{
   const result=hydratePage(page('overview',svg),{snapshot,selected:'',nodes:[],windowMs:60000,width:960,colors});
   assert.equal(result.supported,false);assert.equal(result.svg,svg);
  }
+});
+
+test('node exports include individual CPU bars alongside the gauges',()=>{
+ const context={snapshot:parsePulsedSnapshot(snapshot),selected:node.name,nodes:[node],windowMs:60000,width:960,colors};
+ const rendered=hydratePage(page('node'),context).svg;
+ const detailed={...node,cpu:{...node.cpu,cores:[{index:0,percent:0},{index:1,percent:80}]}};
+ const svg=nodePageWithCoreBars(rendered,detailed,colors,'dark');
+ assert.equal((svg.match(/data-core="/g)||[]).length,2);assert.match(svg,/@pulsed\/dashboard\/node/);assert.match(svg,/@pulsed\/telemetry\/core-bars/);
+ assert.equal(nodePageWithCoreBars(rendered,node,colors,'dark'),rendered);
 });

@@ -6,7 +6,7 @@ export default defineNuxtPlugin(nuxtApp => {
     // The page-only Nuxt router receives absolute paths on popstate. Normalize
     // them before it prepends baseURL, including hash navigation behind proxies.
     const base = useRuntimeConfig().app.baseURL.replace(/\/$/, '')
-    nuxtApp.$router.beforeEach(to => {
+    useRouter().beforeEach(to => {
       if (base && (to.path === base || to.path.startsWith(base + '/'))) return to.fullPath.slice(base.length) || '/'
     })
     nuxtApp.hook('app:mounted', pulsed.start)

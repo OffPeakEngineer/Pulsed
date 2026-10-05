@@ -156,8 +156,9 @@ Draft release notes:
 
 - Add embedded Versytl Stasis Overview, Node detail, and CPU History pages, with
   Shipkit cards, gauges, progress meters, and portable SVG export.
-- Retain up to five minutes of CPU mean/peak observations on the serving peer,
-  with gaps, missing data, and process-local retention shown explicitly.
+- Retain up to five minutes of per-core CPU observations on the serving peer,
+  with all-core and 32-core views, a mean/peak option, usage-driven colors, and
+  missing data and process-local retention shown explicitly.
 - Add node search, sorting, density, themes, pause/manual refresh, core inspection,
   and failure recovery while retaining the classic dashboard.
 - Preserve operator preferences, routed peer identity, and reverse-proxy prefixes
@@ -174,17 +175,61 @@ Validation and remaining gates:
 
 - Local Go tests/vet, nine frontend tests, Pages typechecking, and both browser
   suites pass, including the new artwork in light/dark and mobile layouts.
-- The npm audit gate still fails with 21 high and one moderate finding in build
-  and release dependencies. Latest published `braces` and `node-forge` remain
-  covered by their advisories; npm's offered force fixes downgrade
-  semantic-release to 15.14.0 and Nuxt to 3.15.1. Do not weaken the gate or apply
-  those breaking downgrades as part of branding.
+- The branding checkout's npm audit reported 21 high and one moderate finding
+  in build and release dependencies. Its offered force fixes downgraded
+  semantic-release and Nuxt. See the current follow-up audit below; do not
+  weaken the audit gate or blindly apply breaking dependency changes.
 - Linux ARM64 WSL race testing and vet pass using the CI-pinned Go 1.25.11 toolchain.
   Repeated frontend builds produce identical generated assets.
 - All six `v1.8.0-rc.1` builds completed through `deploy/release/build-all.sh`;
   `sha256sum -c checksums.sha256` verified every binary. Candidates are in `dist/`.
 - Hosted CI and stable publication remain pending. Resolve the dependency audit
   gate before publishing; no stable tag or release was created by this work.
+
+## Logical CPU bars and history follow-up
+
+Overview cards show the logical CPU count and one vertical bar for every
+available core. Node detail exposes a labeled, scrollable bar chart and retains
+the numeric inspector. Large machines keep all their cores; no cores are grouped
+into peak bands in the Pages overview. Cards flow independently down each column
+so a machine with many cores does not leave empty rows beneath its neighbors.
+Node SVG exports include the gauges and all logical CPU bars.
+
+CPU history defaults to individual logical CPUs, with an all-core view, groups
+of 32 for identification, and a Mean / peak view. Each core keeps a stable hue;
+its most recent observed utilization controls saturation. Usage at or below 1%
+settles to grey, and active traces draw above idle traces. Color indicates usage,
+not temperature. Group legends retain CPU indices, including on large machines.
+
+The serving peer records actual core vectors at 0.1% precision, bounded by the
+existing five-minute/150-observation retention and an 8 MiB vector budget across
+nodes. If that budget fills, mean/peak observations continue and core history
+leaves honest gaps. Missing vectors, changed CPU counts, and heartbeat gaps are
+never joined into continuous traces. No past core data is inferred from means.
+Core vectors are returned only for the selected history node; current readings
+are requested only for the visible overview nodes or the selected node.
+
+The Pages host now explicitly imports the pinned upstream Stasis app and its
+CSS, keeping its tabs and navigation intact on the installed Nuxt 3 build.
+Pages has its own TypeScript configuration so typechecking includes the Vue
+components. Builds can use the canonical embedded PNG when the original design
+exports have been removed from `assets/`. The host also fixes base/theme CSS
+ordering so the upstream defaults cannot override the light theme or logo.
+
+Follow-up validation on 2026-10-05:
+
+- Go tests, Linux ARM64 race tests/vet, 15 frontend tests, and Pages Vue
+  typechecking pass. Both browser suites pass, with synthetic 192/1,024-core
+  machines, all-core/group/mean-peak views, saved-group reload, full-core SVG
+  exports, bounded scrolling, light/dark themes, and widths 320–2560.
+- All six local `v1.8.0-rc.1` candidates were rebuilt with this interface through
+  `deploy/release/build-all.sh`; every checksum passes. No stable publication
+  or tag was created.
+- The current installed/locked dependency tree contains Nuxt 3.15.1 and
+  semantic-release 15.14.0. `npm audit --audit-level=high` now reports 83 findings:
+  3 low, 17 moderate, 59 high, and 4 critical. The release audit gate still fails
+  and requires dependency remediation before stable publication. Dependency
+  versions and the audit gate were not changed in this follow-up.
 
 ## Related planning
 

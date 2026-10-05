@@ -95,3 +95,17 @@ func TestPagesEmbeddedRoutingAndJSONEndpoint(t *testing.T) {
 		t.Fatal("Go embed omitted Nuxt assets")
 	}
 }
+
+func TestSnapshotRequestsCurrentCoresAndSelectedHistoryIndependently(t *testing.T) {
+	now := time.Now()
+	nodes := []NodeStats{{Name: "a", CPU: []float64{0, 50}, UpdatedAt: now.UnixNano()}, {Name: "b", CPU: []float64{80}, UpdatedAt: now.UnixNano()}, {Name: "c", CPU: []float64{10}, UpdatedAt: now.UnixNano()}}
+	history := newCPUHistory()
+	history.observe(nodes, now)
+	snapshot := makeAPISnapshot(nodes, history, "a", httptest.NewRequest("GET", "/api/v1/snapshot?include_cores=a&include_cores=b&history_cores=b", nil), now)
+	if len(snapshot.Nodes[0].CPU.Cores) != 2 || len(snapshot.Nodes[1].CPU.Cores) != 1 || snapshot.Nodes[2].CPU.Cores != nil {
+		t.Fatal("current core selection failed")
+	}
+	if snapshot.History["a"][0].CoreTenths != nil || len(snapshot.History["b"][0].CoreTenths) != 1 || snapshot.History["c"][0].CoreTenths != nil {
+		t.Fatal("history selection failed")
+	}
+}
