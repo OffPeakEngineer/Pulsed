@@ -8,9 +8,13 @@ artifacts, CI, and packaging assumptions.
 `.gitlab-ci.yml` runs on merge requests and the default branch. It needs a Linux
 runner that supports container images; no custom runner tags are required.
 
-- `commitlint`: installs the lockfile with `npm ci`, audits high/critical npm
-  vulnerabilities, and lints the MR or push commit range. An initial pipeline
+- `commitlint`: installs the lockfile with `npm ci`, tests the UI, builds and
+  typechecks Pages, checks generated assets, and lints the MR or push commit
+  range. An initial pipeline
   without a previous commit checks the current commit.
+- `npm-audit`: reports high/critical build-tool vulnerabilities in a separate
+  visible job. Advisory failures (exit code 1) do not block releases; install,
+  build, typecheck, test, and commit checks remain required.
 - `go-checks`: checks formatting, runs `go vet` and race tests, and retains a
   coverage profile. Coverage is reported without inheriting Ivy's 70% floor;
   Pulsed's initial measured baseline is 45.0%.
@@ -27,7 +31,10 @@ Go jobs and release builds use `GOTOOLCHAIN=go1.25.11`. The explicit pin avoids
 the existing `cockroachdb/swiss` incompatibility with the locally installed Go
 1.27 toolchain. The release container installs a Go launcher and downloads the
 pinned toolchain into its cache as needed. Node jobs use the Node 22 image and
-its bundled npm with the committed lockfile.
+its bundled npm with the committed lockfile. Frontend tooling requires Node
+22.19 or newer. Install jobs log Node and npm versions to make future resolver
+differences inspectable. Regenerate the lockfile locally with `npm install` when
+changing dependencies, commit it, and keep `npm ci` in CI.
 
 Before the first release, configure a **masked, protected** `GL_TOKEN` CI/CD
 variable, protect the default branch, and enable the project's package registry.
@@ -173,8 +180,22 @@ The Pages checks cover keyboard selection, proxy/query identity, missing data,
 SVG provider metadata, failure retention, filters, densities, mobile controls,
 core scroll preservation, and pagination for 40 nodes.
 
-The development dependency audit remains a separate gate. On 2026-10-04, a
-compatible `npm audit fix` still left 21 high and one moderate advisory across
-release tooling and Nuxt's development toolchain. The suggested force fixes
-downgrade semantic-release and Nuxt to older major versions; they were not
-applied. These packages are build tools and are not shipped as a Node runtime.
+The development dependency audit is visible but nonblocking by project choice.
+On 2026-10-05, updating semantic-release and its plugins and using Nuxt 4 reduced
+the audit from 69 findings (including three critical) to 22 findings (21 high and
+one moderate). `braces` and `node-forge` have advisories covering all reported
+versions; additional findings are bundled into release tooling's npm dependency
+and cannot be automatically fixed by `npm audit fix`. Forced fixes suggest
+downgrading Nuxt and release tools and were not applied. These packages are build
+tools and are not shipped as a Node runtime. Review this job as upstream patches
+become available.
+
+The pipeline repair was verified locally with Node 22.23.3 and npm 10.9.9:
+`npm ci --prefer-offline`, all nine UI tests, Pages generation and typechecking,
+and release-plugin loading, patch selection, and GitLab release-note generation
+passed. The original clean-install failure was `Missing: meow@14.1.0 from lock
+file`; a dry run did not expose it. Nuxt 3 also looked outside the existing
+`app/` layout for CSS; Nuxt 4 builds that layout correctly. Generated Pages assets
+were rebuilt with the updated toolchain. GitLab's CI lint API accepted the
+configuration. Linux runner execution and authenticated GitLab publishing still
+require the real pipeline.

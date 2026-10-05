@@ -2,18 +2,18 @@
   "name": "pulsed",
   "private": true,
   "engines": {
-    "node": ">=22.14.0"
+    "node": ">=22.19.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
-    "@semantic-release/commit-analyzer": "^6.3.3",
-    "@semantic-release/exec": "^3.3.8",
-    "@semantic-release/gitlab": "^6.2.2",
-    "@semantic-release/release-notes-generator": "^9.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/gitlab": "^13.3.3",
+    "@semantic-release/release-notes-generator": "^14.1.1",
     "esbuild": "0.28.2",
-    "nuxt": "^3.15.1",
-    "semantic-release": "^15.14.0",
+    "nuxt": "^4.5.2",
+    "semantic-release": "^25.0.9",
     "typescript": "^5.9.3",
     "vue": "3.5.41",
     "vue-router": "5.2.0",
