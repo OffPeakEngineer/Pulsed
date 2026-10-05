@@ -42,7 +42,7 @@ commitlint:
   extends: .node-cache
   before_script:
     - apk add --no-cache git
-    - npm ci --prefer-offline
+    - npm install --prefer-offline
   script:
     - npm run audit
     - npm run test:ui
