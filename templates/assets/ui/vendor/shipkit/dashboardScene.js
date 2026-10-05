@@ -1,4 +1,4 @@
-import { createCardNode } from './cardScene.js';
+import { createCardNode } from "./cardScene.js";
 const colors = {
     card: '#0d1d27',
     cardEdge: '#1d3543',

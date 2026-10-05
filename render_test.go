@@ -108,6 +108,7 @@ func TestDashboardMissingOfflineAndOutOfRangeMetrics(t *testing.T) {
 func TestDashboardResponsiveFixtures(t *testing.T) {
 	now := time.Now()
 	var nodes []cellData
+	var sourceNodes []NodeStats
 	for i, count := range []int{4, 192, 8, 64, 256, 1024, 0, 16, 32, 2, 48, 128} {
 		stats := NodeStats{Name: fmt.Sprintf("rack-%02d", i+1), CPU: make([]float64, count), MemUsed: uint64(i+1) * 8 << 30, MemTotal: 128 << 30, UpdatedAt: now.UnixNano(), Version: appVersion, Load: [3]float64{float64(i) * 1.4, 0.4, 0.6}}
 		for j := range stats.CPU {
@@ -132,6 +133,7 @@ func TestDashboardResponsiveFixtures(t *testing.T) {
 			stats.UpdatedAt = 0
 		}
 		nodes = append(nodes, dashboardCell(stats))
+		sourceNodes = append(sourceNodes, stats)
 	}
 	var buf bytes.Buffer
 	history := make(map[string][]cpuObservation)
@@ -168,6 +170,18 @@ func TestDashboardResponsiveFixtures(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(filepath.Join(dir, "dashboard.html"), buf.Bytes(), 0644); err != nil {
+			t.Fatal(err)
+		}
+		api := makeAPISnapshot(sourceNodes, &cpuHistory{nodes: history}, "preview-peer", httptest.NewRequest("GET", "/api/v1/snapshot", nil), now)
+		api.RefreshURL = "" // Preview fixtures never redirect to a real peer.
+		for i := range api.Nodes {
+			api.Nodes[i].CPU.Cores = nodes[i].Cores
+		}
+		encoded, err := json.Marshal(api)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "snapshot.json"), encoded, 0644); err != nil {
 			t.Fatal(err)
 		}
 		if err := fs.WalkDir(templateFS, "templates/assets", func(path string, entry fs.DirEntry, err error) error {

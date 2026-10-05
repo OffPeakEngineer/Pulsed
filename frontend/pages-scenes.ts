@@ -3,6 +3,7 @@ import { createProgressBarNode } from './vendor/shipkit/progressScene.js'
 import { createRadialGaugeNode, createLevelIndicatorNode } from './vendor/shipkit/dashboardScene.js'
 import { createScene } from './vendor/scene/scene.js'
 import { sceneFromSvg, sceneToSvg, escapeXml } from './vendor/scene/svg.js'
+import { stringifyScene } from './vendor/scene/serialization.js'
 import type { GroupNode, SceneNode } from './vendor/scene/types.js'
 import { parseStasisSvg, serializeStasisDocument, updateStasisDocument } from './vendor/stasis/index.js'
 import type { StasisPage, StasisPageMetadata } from './vendor/stasis/index.js'
@@ -10,7 +11,7 @@ import type { PulsedNode, PulsedSnapshot } from './pulsed-source.js'
 import { cpuHistoryDocument } from './charts.js'
 
 export type PageColors = { accent: string; peak: string; surface: string; border: string; text: string; muted: string }
-export type PageContext = { snapshot: PulsedSnapshot; selected: string; nodes: PulsedNode[]; windowMs: number; width: number; colors: PageColors }
+export type PageContext = { snapshot: PulsedSnapshot; selected: string; nodes: PulsedNode[]; windowMs: number; width: number; colors: PageColors; density?: string }
 const ids = ['overview', 'node', 'history'] as const
 
 function text(id: string, value: string, x: number, y: number, colors: PageColors, size = 13): SceneNode {
@@ -48,15 +49,17 @@ type Provider = { version: number; render: (page: StasisPage, context: PageConte
 export const pageProviders: ReadonlyMap<string, Provider> = new Map([
   ['@pulsed/dashboard/overview', { version: 1, render: (page: StasisPage, context: PageContext) => {
     const { nodes, colors } = context, width = Math.max(300, context.width)
-    const columns = width >= 1050 ? 3 : width >= 660 ? 2 : 1
-    const gap = 14, cardWidth = (width - gap * (columns - 1)) / columns, cardHeight = 150
+    const compact = context.density === 'compact'
+    const minimum = compact ? 300 : 340
+    const columns = Math.max(1, Math.min(compact ? 4 : 3, Math.floor((width + 14) / (minimum + 14))))
+    const gap = compact ? 8 : 14, cardWidth = (width - gap * (columns - 1)) / columns, cardHeight = 150
     const names: Record<string, string> = {}
     const cards = nodes.map((node, index) => {
       const id = `overview-node-${index}`
       names[id] = node.name
       const cpu = node.cpu.average, memory = node.memory.percent
       const content: SceneNode[] = [
-        text(`${id}-status`, `${node.state === 'fresh' ? 'online' : node.state} · ${Math.round(node.ageSeconds)}s ago`, 18, 56, colors, 12),
+        text(`${id}-status`, node.updatedAt ? `${node.state === 'fresh' ? 'online' : node.state} · ${Math.round(node.ageSeconds)}s ago` : 'offline · no heartbeat', 18, 56, colors, 12),
         text(`${id}-cpu`, cpu === null ? 'CPU unavailable' : `CPU ${cpu.toFixed(1)}% · peak ${node.cpu.peak?.toFixed(1)}%`, 18, 81, colors),
         text(`${id}-memory`, memory === null ? 'Memory unavailable' : `Memory ${memory.toFixed(1)}%`, 18, 121, colors),
       ]
@@ -81,8 +84,8 @@ export const pageProviders: ReadonlyMap<string, Provider> = new Map([
     }))
     function recolor(node: SceneNode): SceneNode {
       if (node.kind === 'group') return { ...node, children: node.children.filter(child => !child.id.endsWith(':menu')).map(recolor) }
-      if (node.kind === 'rectangle') return { ...node, fill: { color: colors.surface }, stroke: node.stroke ? { ...node.stroke, color: colors.border } : undefined }
-      if (node.kind === 'text') return { ...node, fill: { color: colors.text } }
+      if (node.kind === 'rectangle') return { ...node, fill: { color: node.id.endsWith(':fill') ? colors.accent : colors.surface }, stroke: node.stroke ? { ...node.stroke, color: colors.border } : undefined }
+      if (node.kind === 'text') return { ...node, fill: { color: /:(unit)$/.test(node.id) ? colors.accent : /:(eyebrow|detail|tick-label:\d+)$/.test(node.id) ? colors.muted : colors.text } }
       return node
     }
     const children = widgets.map((widget, index) => ({ ...recolor(widget), transform: { x: index % columns * (cardWidth + gap), y: Math.floor(index / columns) * (height + gap), rotation: 0 } })) as GroupNode[]
@@ -100,7 +103,15 @@ export function hydratePage(page: StasisPage, context: PageContext): { svg: stri
   const components = sceneFromSvg(page.svg).root.components || {}
   for (const [id, component] of Object.entries(components)) {
     const provider = pageProviders.get(id)
-    if (provider && component.version === provider.version) return { svg: provider.render(page, context), supported: true }
+    if (provider && component.version === provider.version) {
+      const svg = provider.render(page, context)
+      const original = sceneFromSvg(svg)
+      const scene = { ...original, root: { ...original.root, components: { ...original.root.components, [id]: component } } }
+      // Change only canonical metadata; preserve the interactive SVG attributes.
+      const hydrated = svg.replace(/<metadata\b[^>]*id="versytl-scene"[^>]*>[\s\S]*?<\/metadata>/,
+        () => `<metadata id="versytl-scene">${escapeXml(stringifyScene(scene, 0))}</metadata>`)
+      return { svg: serializeStasisDocument(parseStasisSvg(hydrated)), supported: true }
+    }
   }
   return { svg: page.svg, supported: false }
 }

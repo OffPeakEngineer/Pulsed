@@ -219,6 +219,17 @@ That example also includes a low-priority host-only fallback route. If Traefik s
 
 ## Notes
 
+**Open Stasis Pages** in the dashboard opens `/pages/`: an Overview of selectable
+node cards, Node detail with CPU/memory gauges and core inspection, and CPU
+history with mean/peak trends and portable SVG export. Search, sorting, density,
+theme, selected node, window, and pause state survive page changes and peer
+rebasing. Failed refreshes retain the last snapshot and show a retry notice.
+The classic dashboard remains at `/` and is available without JavaScript.
+
+Both interfaces and their assets are embedded in the same executable. Vue and
+Nuxt are used to build the Stasis pages; the running daemon needs no Node server
+or external asset service.
+
 pulsed uses peer-to-peer state sharing and a small local store internally, but those are implementation details for the dashboard. It is not intended to be a general-purpose distributed database or key-value API.
 
 ## Requirements

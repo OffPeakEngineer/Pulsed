@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"html"
 	"io/fs"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -61,7 +62,7 @@ func makeAPISnapshot(nodes []NodeStats, history *cpuHistory, selfName string, r 
 		SchemaVersion: 1, GeneratedAt: now.UnixMilli(), ServingNode: selfName,
 		RefreshMs: computeRefreshIntervalMs(nodes), HistoryWindowMs: cpuHistoryWindow.Milliseconds(),
 		Summary: apiSummary{summary.Fresh, summary.Stale, summary.Offline, summary.Hottest},
-		Nodes: make([]apiNode, 0, len(nodes)), History: history.snapshot(),
+		Nodes:   make([]apiNode, 0, len(nodes)), History: history.snapshot(),
 	}
 	if peer := findLowerLoadRedirect(nodes, selfName); peer != nil {
 		snapshot.RefreshURL = pageURL(peer.WebURL, displayQuery(r))
@@ -77,7 +78,14 @@ func makeAPISnapshot(nodes []NodeStats, history *cpuHistory, selfName string, r 
 			node.WebURL = pageURL(s.WebURL, displayQuery(r))
 		}
 		if cell.State != healthOffline {
-			if len(s.CPU) > 0 {
+			validCPU := len(s.CPU) > 0
+			for _, value := range s.CPU {
+				if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 100 {
+					validCPU = false
+					break
+				}
+			}
+			if validCPU {
 				node.CPU.Average, node.CPU.Peak = &cell.CPUAvg, &cell.CPUMax
 				if r.URL.Query().Get("include_cores") == s.Name {
 					node.CPU.Cores = cell.Cores
@@ -86,7 +94,16 @@ func makeAPISnapshot(nodes []NodeStats, history *cpuHistory, selfName string, r 
 			if s.MemTotal > 0 {
 				node.Memory.Percent, node.Memory.Label = &cell.MemPct, cell.MemLabel
 			}
-			node.Load = &s.Load
+			validLoad := true
+			for _, value := range s.Load {
+				if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+					validLoad = false
+					break
+				}
+			}
+			if validLoad {
+				node.Load = &s.Load
+			}
 		}
 		snapshot.Nodes = append(snapshot.Nodes, node)
 	}
@@ -170,6 +187,8 @@ func makePagesHandler() http.HandlerFunc {
 			return match[1] + `="` + html.EscapeString(parsed.String()) + `"`
 		})
 		markup = strings.ReplaceAll(markup, `"/pages/"`, `"`+base+`"`)
+		classic := (&url.URL{Path: r.URL.Path[:i] + "/", RawQuery: r.URL.RawQuery}).String()
+		markup = strings.ReplaceAll(markup, `href="../"`, `href="`+html.EscapeString(classic)+`"`)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte(markup))

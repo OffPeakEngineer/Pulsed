@@ -46,7 +46,9 @@ commitlint:
   script:
     - npm run audit
     - npm run test:ui
-    - git diff --exit-code -- templates/assets/ui
+    - npm run build:pages
+    - npm run typecheck:pages
+    - git diff --exit-code -- templates/assets frontend/pages/dashboards
     - |
       if [ -n "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}" ]; then
         commit_from="$CI_MERGE_REQUEST_DIFF_BASE_SHA"

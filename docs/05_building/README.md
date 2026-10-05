@@ -72,8 +72,8 @@ the first real GitLab release job.
 
 ## Versytl UI assets
 
-The first Versytl slice uses renderer-neutral Shipkit dashboard/progress
-factories, Scene SVG export, and Stasis's portable document package. The small
+The Versytl integration uses Shipkit dashboard/progress factories, Scene SVG
+export, Stasis documents and Pages, and Bridge's explicit source registry. The
 source snapshot is pinned by commit and hash in `frontend/vendor/manifest.json`;
 it does not depend on the untracked local `versytl` symlink. Pulsed owns telemetry
 adaptation in `frontend/charts.ts` and browser inspection in `frontend/main.ts`.
@@ -83,18 +83,43 @@ When changing frontend source, run:
 ```sh
 npm ci
 npm run test:ui
+npm run build:pages
+npm run typecheck:pages
 ```
 
-Commit `templates/assets/ui` with its source changes. TypeScript and esbuild are
+Commit `templates/assets` and `frontend/pages/dashboards` with source changes.
+TypeScript, esbuild, Vue, and Nuxt are
 build-only dependencies; `go build` embeds the generated browser code and requires no
 Node runtime, external asset host, or private registry. CI verifies source hashes,
-runs frontend tests, and rejects generated-asset drift. The current UI consumes
-Stasis documents; the full Nuxt Stasis Pages host and Pulsed source adapter remain
-follow-up work in `tasks/0_planning/versytl_dashboard.md`.
+runs frontend tests and Pages typechecking, and rejects generated-asset drift.
+The Nuxt layer generates static HTML, CSS, and one browser module; Pulsed serves
+them directly. No Nuxt server runs in the released daemon. The build bundles
+lazy modules and links their scoped CSS so recovery views need no extra fetches.
 
 The browser uses one bundled module, with the dashboard's query parameters on
 its relative asset URL. This preserves `pulsed_node` on query-routed proxies;
 snapshot requests also preserve the full route and node query.
+The same applies to `/pages/`, including reverse-proxy prefixes. The server
+rewrites the static base URL and initial links for the incoming route. There
+are no CDN, package-registry, or pipeline-API calls from either dashboard.
+
+### Pulsed Pages source
+
+`frontend/pulsed-source.ts` registers `pulsed/snapshot@1` with Bridge. The host
+chooses the same-origin endpoint and refresh policy; SVG metadata cannot import
+code or choose a network origin. `frontend/pages-scenes.ts` registers versioned
+Overview, Node, and History providers and retains their payloads in exported
+scene metadata. Unknown providers or versions keep their saved SVG.
+
+`GET /api/v1/snapshot`, `/api/v1/nodes`, and `/api/v1/cpu-history` return the same
+versioned, no-store JSON envelope: `schemaVersion`, generation time in Unix
+milliseconds, serving peer, refresh interval/target, health summary, nodes, and
+per-node CPU observations. The latter two routes accept `node=<name>` and return
+404 for an unknown node. `include_cores=<name>` includes current per-core readings
+only for that node. Node detail uses this to keep ordinary refreshes small.
+Unavailable CPU, memory, and offline load values are `null`; valid idle values
+are zero. All routes preserve `pulsed_node` and proxy prefixes. `HEAD` is supported;
+other methods return 405. History uses the existing bounded, peer-local ring.
 
 ## Dashboard regression checks
 
@@ -112,6 +137,8 @@ PULSED_PREVIEW_DIR=/tmp/pulsed-preview PULSED_PREVIEW_PORT=4319 node scripts/pre
 
 Open `http://127.0.0.1:4319/dashboard.html`. This contains synthetic data, including
 a 1,024-core host. It does not represent your actual cluster.
+Open `/pages/` on that server to inspect the Stasis interface. The fixture's JSON
+and static server simulate the source; Go handler tests exercise real routing.
 
 For browser checks, install Playwright into an external temporary directory:
 
@@ -121,6 +148,7 @@ PULSED_PLAYWRIGHT_MODULE=/tmp/pulsed-browser/node_modules/playwright/index.mjs \
 PULSED_CHROME='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' \
 PULSED_SCREENSHOTS=/tmp/pulsed-preview \
 node scripts/check-dashboard.mjs
+PULSED_PREVIEW_URL=http://127.0.0.1:4319/pages/ node scripts/check-pages.mjs
 ```
 
 Set `PULSED_CHROME` to your local Chrome/Chromium executable, or omit it if
@@ -134,3 +162,12 @@ CPU details without horizontal scrolling in portrait and landscape layouts.
 
 The fixture includes synthetic CPU observations and an intentional gap. It
 verifies presentation and browser behavior without joining a real cluster.
+The Pages checks cover keyboard selection, proxy/query identity, missing data,
+SVG provider metadata, failure retention, filters, densities, mobile controls,
+core scroll preservation, and pagination for 40 nodes.
+
+The development dependency audit remains a separate gate. On 2026-10-04, a
+compatible `npm audit fix` still left 21 high and one moderate advisory across
+release tooling and Nuxt's development toolchain. The suggested force fixes
+downgrade semantic-release and Nuxt to older major versions; they were not
+applied. These packages are build tools and are not shipped as a Node runtime.

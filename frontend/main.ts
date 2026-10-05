@@ -45,7 +45,7 @@ function render() {
   meter.innerHTML = offline || !node.MemTotal ? '' : memoryMeter(node.MemPct, palette)
   meter.querySelector('svg')?.setAttribute('aria-hidden', 'true')
   const windowMs = Number(windowSelect.value)
-  const points = (snapshot.history[node.Name] || []).filter(point => point.at >= snapshot.generatedAt - windowMs)
+  const points = (Object.hasOwn(snapshot.history, node.Name) ? snapshot.history[node.Name]! : []).filter(point => point.at >= snapshot.generatedAt - windowMs)
   text('history-note', points.length === 0 ? 'No CPU history available yet. Readings appear as this peer observes heartbeats.'
     : `${points.length} observed reading${points.length === 1 ? ' · collecting a trend' : 's'} · ${offline ? 'last known history · ' : ''}gaps indicate missing heartbeats.`)
   text('history-source', `Observed by ${snapshot.servingNode || 'this peer'} · up to 5 minutes · resets on restart or changes with peer.`)

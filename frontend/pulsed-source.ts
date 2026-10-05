@@ -56,12 +56,12 @@ export function parsePulsedSnapshot(value: unknown): PulsedSnapshot {
       memory: { percent: percent(memory.percent), label: string(memory.label) }, load: load as PulsedNode['load'],
     }
   })
-  const history = Object.fromEntries(Object.entries(record(root.history)).map(([name, values]) => [name,
+  const history = Object.assign(Object.create(null), Object.fromEntries(Object.entries(record(root.history)).map(([name, values]) => [name,
     values === null ? [] : array(values).map(value => {
       const point = record(value)
       return { at: number(point.at), average: number(point.average, 0, 100), peak: number(point.peak, 0, 100), ttlSeconds: number(point.ttlSeconds, 1) }
     }).sort((a, b) => a.at - b.at),
-  ]))
+  ]))) as Record<string, Observation[]>
   return {
     schemaVersion: 1, generatedAt: number(root.generatedAt), servingNode: string(root.servingNode),
     refreshMs: number(root.refreshMs, 1000, 60000), refreshURL: string(root.refreshURL), historyWindowMs: number(root.historyWindowMs),
@@ -73,10 +73,10 @@ export const pulsedSource: BridgeSourceAdapter<PulsedSnapshot> = {
   kind: 'source', id: 'pulsed/snapshot', version: 1,
   async read(config, context) {
     const url = (config as { url?: unknown } | null)?.url
-    if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//')) throw new BridgeError('invalid-config', 'Pulsed sources require a same-origin endpoint')
+    if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//') || /[\\\x00-\x20]/.test(url)) throw new BridgeError('invalid-config', 'Pulsed sources require a same-origin endpoint')
     let response: Response
     try {
-      response = await context.fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store', signal: context.signal })
+      response = await context.fetch.call(globalThis, url, { headers: { accept: 'application/json' }, cache: 'no-store', signal: context.signal })
     } catch (cause) {
       throw new BridgeError('request-failed', 'Unable to refresh this peer', {}, { cause })
     }
@@ -106,7 +106,7 @@ export function pagesURL(base: string, currentHref: string): string {
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid peer URL')
   if (!url.pathname.endsWith('/pages/')) url.pathname = new URL('./pages/', url).pathname
   const current = new URL(currentHref)
-  for (const key of ['theme', 'palette', 'focus', 'window', 'q', 'sort', 'density', 'hide']) {
+  for (const key of ['theme', 'palette', 'focus', 'window', 'q', 'sort', 'density', 'hide', 'paused']) {
     if (current.searchParams.has(key)) url.searchParams.set(key, current.searchParams.get(key)!)
   }
   url.hash = current.hash || '#overview'
