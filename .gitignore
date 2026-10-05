@@ -40,3 +40,10 @@ node_modules/
 .ci/
 frontend/pages/.nuxt/
 frontend/pages/.output/
+
+
+versytl
+frontend/pages/dist
+
+
+
