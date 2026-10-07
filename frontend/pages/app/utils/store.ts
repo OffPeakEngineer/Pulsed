@@ -30,7 +30,7 @@ export function createPulsedStore() {
   const maxPage = computed(() => Math.max(0, Math.ceil(filtered.value.length / 24) - 1))
   const currentPage = computed(() => Math.min(pageNumber.value, maxPage.value))
   const displayed = computed(() => filtered.value.slice(currentPage.value * 24, (currentPage.value + 1) * 24))
-  const coreRequest = computed(() => JSON.stringify(activePage.value === 'overview' ? displayed.value.map(node => node.name).sort() : [selected.value]))
+  const coreRequest = computed(() => JSON.stringify(activePage.value === 'overview' ? [] : [selected.value]))
   const fallback = computed(() => {
     if (!ready.value || !import.meta.client) return initialClassic
     const url = new URL(classicURL(location.href), location.href)
@@ -77,7 +77,7 @@ export function createPulsedStore() {
     try {
       // This explicit registry entry validates and returns PulsedSnapshot.
       const source = pulsedBridge.source('pulsed/snapshot', 1) as BridgeSourceAdapter<PulsedSnapshot>
-      const result = await source.read({ url: snapshotURL(location.href, JSON.parse(coreRequest.value), activePage.value === 'history' ? selected.value : '') }, { fetch, now: () => new Date(), signal: controller.signal })
+      const result = await source.read({ url: snapshotURL(location.href, JSON.parse(coreRequest.value), activePage.value === 'node' ? selected.value : '') }, { fetch, now: () => new Date(), signal: controller.signal })
       if (current !== generation) return
       if (!force && document.activeElement?.matches('input, select, summary:focus-visible, [data-pulsed-node]:focus-visible')) return
       snapshot.value = result.data

@@ -18,13 +18,15 @@ function frame(id, title, width, height, colors, children = []) {
 function document(root, width, height, metadata, title, description, names = {}) {
     let svg = sceneToSvg(createScene(width, height, root), { nodeAttributes: node => names[node.id] ? {
             role: 'button', tabindex: 0, 'aria-label': `Inspect ${names[node.id]}`, 'data-pulsed-node': names[node.id],
+        } : node.kind === 'path' && node.metadata?.core !== undefined ? {
+            'data-core-trace': Number(node.metadata.core), 'aria-label': `CPU ${node.metadata.core}`, role: 'img',
         } : coreBarAttributes(node) });
     svg = svg.replace(/<svg\b[^>]*>/, opening => `${opening}\n<title>${escapeXml(title)}</title>\n<desc>${escapeXml(description)}</desc>`);
     return serializeStasisDocument(updateStasisDocument(parseStasisSvg(svg), { metadata }));
 }
 export function authoredPage(id) {
     const colors = { accent: '#65d5ef', peak: '#facc15', surface: '#0d1d27', border: '#29414f', text: '#f1f6f7', muted: '#9bb0bc' };
-    const label = { overview: 'Overview', node: 'Node detail', history: 'CPU history' }[id];
+    const label = { overview: 'Nodes', node: 'Node detail & history', history: 'CPU history' }[id];
     const provider = `@pulsed/dashboard/${id}`;
     return document({ id: `pulsed-${id}`, kind: 'group', children: [frame('fallback', 'Waiting for a peer snapshot', 960, 160, colors, [
                 text('fallback-note', 'Readings appear when this peer is reachable. The classic dashboard remains available.', 18, 88, colors),
@@ -48,31 +50,27 @@ export const pageProviders = new Map([
                 const cards = nodes.map((node, index) => {
                     const id = `overview-node-${index}`;
                     names[id] = node.name;
-                    const cpu = node.cpu.average, memory = node.memory.percent;
-                    const bars = coreBars(`${id}-cores`, node.cpu.cores || [], cardWidth - 36, colors, false, context.theme);
-                    const barsHeight = node.cpu.cores ? bars.height : 22;
-                    const cardHeight = 162 + barsHeight;
+                    const cardHeight = compact ? 204 : 220;
                     const column = index % columns, y = columnHeights[column];
                     columnHeights[column] = y + cardHeight + gap;
+                    const capacity = node.memory.total ? `${(node.memory.total / 2 ** 30).toFixed(1)} GiB RAM` : 'Memory capacity unavailable';
                     const content = [
                         text(`${id}-status`, node.updatedAt ? `${node.state === 'fresh' ? 'online' : node.state} · ${Math.round(node.ageSeconds)}s ago` : 'offline · no heartbeat', 18, 56, colors, 12),
-                        text(`${id}-cpu`, cpu === null ? 'CPU unavailable' : `CPU ${cpu.toFixed(1)}% · peak ${node.cpu.peak?.toFixed(1)}%`, 18, 81, colors),
-                        text(`${id}-count`, `${node.cpu.count} logical CPUs`, 18, 104, colors),
-                        text(`${id}-memory`, memory === null ? 'Memory unavailable' : `Memory ${memory.toFixed(1)}%`, 18, 142 + barsHeight, colors),
+                        text(`${id}-count`, `${node.cpu.count} logical CPUs`, 18, 82, colors, 12),
+                        text(`${id}-capacity`, capacity, 18, 104, colors, 12),
+                        text(`${id}-role`, compactName(node.role || 'Role not set'), 18, 130, colors, 12),
+                        text(`${id}-version`, compactName(node.version || 'Version unavailable'), 18, 154, colors, 12),
+                        text(`${id}-open`, 'CPU history & node detail →', 18, compact ? 184 : 200, colors, 12),
                     ];
-                    if (node.cpu.cores)
-                        content.push({ ...bars.root, transform: { x: 18, y: 114, rotation: 0 } });
-                    else
-                        content.push(text(`${id}-cores-pending`, cpu === null ? 'Core readings unavailable' : 'Loading core bars…', 18, 125, colors, 12));
                     const card = frame(id, compactName(node.name), cardWidth, cardHeight, colors, content);
                     return { ...card, transform: { x: column * (cardWidth + gap), y, rotation: 0 } };
                 });
                 const height = Math.max(184, ...columnHeights.map(height => height - gap));
-                return document({ id: 'overview-root', kind: 'group', children: cards }, width, height, page.metadata, 'Cluster overview', `${nodes.length} displayed nodes. Activate a node to inspect its metrics.`, names);
+                return document({ id: 'overview-root', kind: 'group', children: cards }, width, height, page.metadata, 'Cluster nodes', `${nodes.length} displayed nodes with specifications. Activate a node to inspect its history and metrics.`, names);
             } }],
     ['@pulsed/dashboard/node', { version: 1, render: (page, context) => {
                 const node = context.snapshot.nodes.find(node => node.name === context.selected);
-                const { colors } = context, width = Math.max(300, Math.min(1100, context.width));
+                const { colors } = context, width = Math.max(320, Math.min(1000, context.width));
                 const columns = width >= 660 ? 2 : 1, gap = 16, cardWidth = (width - gap * (columns - 1)) / columns;
                 const height = 300, widgets = [];
                 const cpu = node?.cpu.average, memory = node?.memory.percent;
@@ -92,7 +90,15 @@ export const pageProviders = new Map([
                     return node;
                 }
                 const children = widgets.map((widget, index) => ({ ...recolor(widget), transform: { x: index % columns * (cardWidth + gap), y: Math.floor(index / columns) * (height + gap), rotation: 0 } }));
-                return document({ id: 'node-root', kind: 'group', children }, width, columns === 1 ? height * 2 + gap : height, page.metadata, `${node?.name || 'Unknown node'} metrics`, 'Current CPU and memory usage. Unavailable readings are not zero.');
+                const historySvg = cpuHistoryDocument({ name: context.selected || 'Choose a node', servingNode: context.snapshot.servingNode,
+                    points: context.snapshot.history[context.selected] || [], end: context.snapshot.generatedAt, windowMs: context.windowMs, width,
+                    theme: context.theme || 'dark', colors, mode: context.historyMode, coreStart: context.coreStart, coreLimit: context.coreLimit });
+                const historyScene = sceneFromSvg(historySvg);
+                const offset = historyScene.height + 64;
+                const detail = { id: 'node-current-metrics', kind: 'group', children,
+                    transform: { x: 0, y: offset, rotation: 0 } };
+                return document({ id: 'node-root', kind: 'group', children: [historyScene.root,
+                        text('node-detail-heading', 'Node detail', 18, offset - 22, colors, 20), detail] }, width, offset + (columns === 1 ? height * 2 + gap : height), page.metadata, `${node?.name || 'Unknown node'} CPU history and detail`, 'CPU observation history above current CPU and memory usage. Unavailable readings are not zero.');
             } }],
     ['@pulsed/dashboard/history', { version: 1, render: (page, context) => {
                 const svg = cpuHistoryDocument({ name: context.selected || 'Choose a node', servingNode: context.snapshot.servingNode,

@@ -20,11 +20,13 @@ type apiCPU struct {
 }
 
 type apiMemory struct {
+	Total   uint64   `json:"total"`
 	Percent *float64 `json:"percent"`
 	Label   string   `json:"label"`
 }
 
 type apiNode struct {
+	Role      string      `json:"role,omitempty"`
 	Name      string      `json:"name"`
 	State     healthState `json:"state"`
 	Age       float64     `json:"ageSeconds"`
@@ -74,9 +76,9 @@ func makeAPISnapshot(nodes []NodeStats, history *cpuHistory, selfName string, r 
 	for _, s := range nodes {
 		cell := dashboardCell(s)
 		node := apiNode{
-			Name: s.Name, State: cell.State, Age: cell.Age, UpdatedAt: s.UpdatedAt / int64(time.Millisecond),
+			Name: s.Name, Role: s.Role, State: cell.State, Age: cell.Age, UpdatedAt: s.UpdatedAt / int64(time.Millisecond),
 			TTL: int(nodeTTL(s) / time.Second), Version: cell.Version,
-			CPU: apiCPU{Count: len(s.CPU)}, Memory: apiMemory{Label: "Unavailable"},
+			CPU: apiCPU{Count: len(s.CPU)}, Memory: apiMemory{Label: "Unavailable", Total: s.MemTotal},
 		}
 		if parsed, err := url.Parse(s.WebURL); err == nil && parsed.User == nil && parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https") {
 			node.WebURL = pageURL(s.WebURL, displayQuery(r))

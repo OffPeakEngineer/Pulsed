@@ -17,9 +17,10 @@ try {
  page.on('request',r=>requests.push(r.url()));
  await page.goto(base.href);
  await page.waitForFunction(()=>document.querySelectorAll('[data-pulsed-node]').length===12);
- await page.waitForFunction(()=>document.querySelectorAll('[data-pulsed-node="compute-192"] [data-core]').length===192);
- assert.equal(await page.locator('[data-pulsed-node="large-host-1024-with-a-very-long-name.cluster.internal"] [data-core]').count(),1024);
+ assert.equal(await page.locator('#tab-history').count(),0);
+ assert.equal(await page.locator('[data-pulsed-node] [data-core]').count(),0);
  assert.match(await page.locator('[data-pulsed-node="compute-192"]').textContent(),/192 logical CPUs/);
+ assert.match(await page.locator('[data-pulsed-node="compute-192"]').textContent(),/128.0 GiB RAM/);
  await page.getByRole('button',{name:'Pause refresh',exact:true}).click();
  await page.locator('#pages-search').fill('compute');
  assert.equal(await page.locator('[data-pulsed-node]').count(),1);
@@ -27,6 +28,9 @@ try {
  await page.waitForFunction(()=>document.querySelector('#tab-node').getAttribute('aria-selected')==='true');
  assert.equal(await page.locator('#pages-node').inputValue(),'compute-192');
  await page.waitForFunction(()=>document.querySelectorAll('.pages-bar-scroll [data-core]').length===192);
+ await page.waitForFunction(()=>document.querySelectorAll('[data-core-trace]').length===192);
+ const positions=await page.evaluate(()=>({history:document.querySelector('[id="pulsed-cpu-history"]').getBoundingClientRect().top,detail:document.querySelector('[id="node-current-metrics"]').getBoundingClientRect().top}));
+ assert(positions.history<positions.detail);
  if(output)await page.screenshot({path:output+'/pages-core-bars.png',fullPage:true});
  await page.getByText('Inspect 192 logical CPUs',{exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('.pages-core-grid meter').length===192);
@@ -45,7 +49,7 @@ try {
  const nodeDownloading=page.waitForEvent('download');await page.getByRole('button',{name:'Export SVG',exact:true}).click();
  const nodeSVG=await readFile(await (await nodeDownloading).path(),'utf8');
  assert.equal((nodeSVG.match(/data-core="/g)||[]).length,1024);assert.match(nodeSVG,/@pulsed\/telemetry\/core-bars/);
- await page.locator('#tab-history').click();
+
  await page.waitForFunction(()=>document.querySelectorAll('[data-core-trace]').length===1024);
  if(output)await page.screenshot({path:output+'/pages-history-1024.png',fullPage:true});
  await page.locator('#pages-core-group').selectOption('31');
@@ -66,12 +70,12 @@ try {
  assert.match(await page.locator('.history-description').innerText(),/observed readings/);
  const downloading=page.waitForEvent('download');await page.getByRole('button',{name:'Export SVG',exact:true}).click();
  const downloaded=await downloading;const svg=await readFile(await downloaded.path(),'utf8');
- assert.match(svg,/@pulsed\/dashboard\/history/);assert.match(svg,/@versytl\/shipkit\/dashboard-widget/);assert.match(svg,/id="stasis-page"/);
+ assert.match(svg,/@pulsed\/dashboard\/node/);assert.match(svg,/@versytl\/shipkit\/dashboard-widget/);assert.match(svg,/id="stasis-page"/);
  assert.match(svg,/coreIndices/);assert.match(svg,/data-core-trace="191"/);assert.match(svg,/#46505b/);
  if(output)await page.screenshot({path:output+'/pages-history.png',fullPage:true});
  await page.locator('#pages-node').selectOption('rack-07');
  assert.match(await page.locator('.history-description').innerText(),/No CPU history/);
- assert(await page.getByRole('button',{name:'Export SVG',exact:true}).isDisabled());
+ assert(!(await page.getByRole('button',{name:'Export SVG',exact:true}).isDisabled()));
  await page.locator('#tab-overview').click();await page.locator('#pages-search').fill('no-such-node');
  await page.getByRole('button',{name:'Clear filters',exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('[data-pulsed-node]').length===12);
@@ -97,17 +101,17 @@ try {
  assert.equal(view.paused,true);assert.equal(view.sort,'cpuAvg');
  let count=0;
  await page.route('**/api/v1/snapshot*',async route=>{
-  const response=await route.fetch();const snapshot=await response.json();snapshot.nodes.find(node=>node.name==='compute-192').cpu.average=74;snapshot.generatedAt+=1000;
+  const response=await route.fetch();const snapshot=await response.json();snapshot.nodes.find(node=>node.name==='compute-192').role='Updated worker';snapshot.generatedAt+=1000;
   count++;await route.fulfill({response,json:snapshot});
  });
  await page.getByRole('button',{name:'Refresh now',exact:true}).click();
- await page.waitForFunction(()=>document.querySelector('[data-pulsed-node="compute-192"]').textContent.includes('74.0%'));
+ await page.waitForFunction(()=>document.querySelector('[data-pulsed-node="compute-192"]').textContent.includes('Updated worker'));
  assert.equal(count,1);assert.equal(await page.locator('#pages-density').inputValue(),'compact');
  await page.unroute('**/api/v1/snapshot*');
  await page.route('**/api/v1/snapshot*',route=>route.fulfill({status:503,body:'unavailable'}));
  await page.getByRole('button',{name:'Refresh now',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('.source-state').textContent.includes('last snapshot'));
- assert.match(await page.locator('[data-pulsed-node="compute-192"]').textContent(),/74.0%/);
+ assert.match(await page.locator('[data-pulsed-node="compute-192"]').textContent(),/Updated worker/);
  await page.unroute('**/api/v1/snapshot*');
  assert(requests.filter(url=>/pulsed-pages\.js|\.css|\/api\/v1\//.test(url)).every(url=>new URL(url).searchParams.get('pulsed_node')==='preview-peer'));
  assert.equal(requests.filter(url=>/pipelines/.test(url)).length,0);
@@ -119,6 +123,12 @@ try {
  assert(await mobile.locator('.pulsed-page button,.pulsed-page select,.pulsed-page input[type=search]').evaluateAll(items=>items.every(el=>el.getBoundingClientRect().height>=44)));
  assert.equal(await mobile.locator('#pages-search').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)),16);
  if(output)await mobile.screenshot({path:output+'/pages-phone.png',fullPage:true});
+ await mobile.locator('[data-pulsed-node="compute-192"]').tap();
+ await mobile.waitForFunction(()=>document.querySelectorAll('[data-core-trace]').length===192);
+ assert(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ if(output)await mobile.screenshot({path:output+'/pages-node-phone.png',fullPage:true});
+ const legacy=await browser.newPage();await legacy.goto(base.href+'#history');
+ await legacy.waitForFunction(()=>location.hash==='#node' && document.querySelector('#tab-node')?.getAttribute('aria-selected')==='true');
  const noJS=await browser.newPage({javaScriptEnabled:false});await noJS.goto(base.href);
  assert(await noJS.locator('noscript a').isVisible());assert.match(await noJS.locator('body').innerText(),/Waiting for a peer snapshot/);
  const noJSClassic=new URL(await noJS.locator('noscript a').getAttribute('href'),base);

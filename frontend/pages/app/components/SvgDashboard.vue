@@ -79,7 +79,7 @@ function exportPage() {
         <a :href="fallback" id="classic-dashboard">Classic dashboard</a>
       </div>
     </div>
-    <noscript><p>Interactive pages require JavaScript. Open the <a href="../">classic dashboard</a> for current readings and core inspection.</p></noscript>
+    <noscript><p>Interactive pages require JavaScript. Open the <a href="../">classic dashboard</a> for current readings.</p></noscript>
     <div v-if="snapshot" class="cluster-health" aria-label="Cluster health">
       <span class="fresh">{{ snapshot.summary.fresh }} online</span><span class="stale">{{ snapshot.summary.stale }} stale</span><span class="offline">{{ snapshot.summary.offline }} offline</span>
       <span v-if="snapshot.summary.hottest">Hottest: {{ snapshot.summary.hottest }}</span>
@@ -92,19 +92,29 @@ function exportPage() {
     </div>
     <div v-else class="page-controls">
       <label>Node<select v-model="selected" id="pages-node" :disabled="!nodeOptions.length"><option v-for="name in nodeOptions" :key="name" :value="name">{{ name }}</option></select></label>
-      <label v-if="page.id === 'history'">Window<select v-model.number="windowMs" id="pages-window"><option :value="60000">Last minute</option><option :value="300000">Last 5 minutes</option></select></label>
-      <label v-if="page.id === 'history'">Traces<select v-model="historyMode" id="pages-traces"><option value="cores">Logical CPUs</option><option value="summary">Mean / peak</option></select></label>
-      <label v-if="page.id === 'history' && historyMode === 'cores'">Core group<select v-model.number="coreGroup" id="pages-core-group"><option :value="-1">All {{ historyCoreCount }} logical CPUs</option><option v-for="group in coreGroups" :key="group.index" :value="group.index">{{ group.label }}</option></select></label>
+      <label v-if="page.id === 'node'">Window<select v-model.number="windowMs" id="pages-window"><option :value="60000">Last minute</option><option :value="300000">Last 5 minutes</option></select></label>
+      <label v-if="page.id === 'node'">Traces<select v-model="historyMode" id="pages-traces"><option value="cores">Logical CPUs</option><option value="summary">Mean / peak</option></select></label>
+      <label v-if="page.id === 'node' && historyMode === 'cores'">Core group<select v-model.number="coreGroup" id="pages-core-group"><option :value="-1">All {{ historyCoreCount }} logical CPUs</option><option v-for="group in coreGroups" :key="group.index" :value="group.index">{{ group.label }}</option></select></label>
       <a v-if="peer" :href="peer" id="rebase-peer">View from this peer</a>
     </div>
     <div class="page-heading">
-      <h1>{{ page.id === 'overview' ? 'Cluster overview' : selected || page.label }}</h1>
-      <div class="action-buttons"><label class="theme-label">Theme<select v-model="theme" id="pages-theme"><option value="dark">Dark</option><option value="light">Light</option></select></label><button @click="exportPage" :disabled="!snapshot || (page.id === 'history' && !samples.length)">Export SVG</button></div>
+      <h1>{{ page.id === 'overview' ? 'Cluster nodes' : selected || page.label }}</h1>
+      <div class="action-buttons"><label class="theme-label">Theme<select v-model="theme" id="pages-theme"><option value="dark">Dark</option><option value="light">Light</option></select></label><button @click="exportPage" :disabled="!snapshot">Export SVG</button></div>
     </div>
     <p v-if="page.id !== 'overview' && snapshot" class="node-current">
-      <template v-if="selectedNode">{{ selectedNode.state === 'fresh' ? 'online' : selectedNode.state }} · {{ selectedNode.updatedAt ? 'updated ' + Math.round(selectedNode.ageSeconds) + 's ago' : 'no heartbeat available' }} · {{ selectedNode.version }}</template>
+      <template v-if="selectedNode">{{ selectedNode.state === 'fresh' ? 'online' : selectedNode.state }} · {{ selectedNode.updatedAt ? 'updated ' + Math.round(selectedNode.ageSeconds) + 's ago' : 'no heartbeat available' }} · {{ selectedNode.role || 'Role not set' }} · {{ selectedNode.cpu.count }} logical CPUs · {{ selectedNode.memory.total ? (selectedNode.memory.total / 2 ** 30).toFixed(1) + ' GiB RAM' : 'Memory capacity unavailable' }} · {{ selectedNode.version }}</template>
       <template v-else>This node is no longer visible to this peer. Select another node.</template>
     </p>
+    <div v-if="page.id === 'node'" class="history-description">
+      <div v-if="historyMode === 'summary'" class="history-legend"><span>Mean CPU</span><span>Peak logical CPU</span></div>
+      <template v-else>
+        <p>{{ historyCoreCount }} logical CPUs · {{ coreGroup < 0 ? 'all cores' : coreGroups[coreGroup]?.label }}. Idle traces settle to grey; saturation increases with the latest observed usage. Active traces draw above idle ones. Select a group to identify individual CPUs.</p>
+        <div v-if="legendCores.length" class="core-legend"><span v-for="core in legendCores" :key="core" :style="{ '--core-color': coreColor(core, latestCoreUsage(samples, core), theme as 'dark' | 'light') }">CPU {{ core }}</span></div>
+        <p v-if="!coreHistorySamples">Per-core history is collecting. Older mean / peak observations remain available in the Mean / peak view.</p>
+      </template>
+      <p>{{ samples.length ? samples.length + ' observed readings · ' + (historyMode === 'cores' ? coreHistorySamples + ' with per-core data · ' : '') + 'gaps indicate missing readings.' : 'No CPU history available yet. Readings appear as this peer observes heartbeats.' }}</p>
+      <p>Observed by {{ snapshot?.servingNode || 'this peer' }} · up to five minutes · resets on restart and changes with the serving peer.</p>
+    </div>
     <div v-if="page.id === 'overview' && snapshot && !filtered.length" class="empty-state">
       <p>{{ snapshot.nodes.length ? 'No nodes match these filters.' : 'Waiting for a node heartbeat.' }}</p>
       <button v-if="snapshot.nodes.length" @click="search = ''; hideStale = false; hideOffline = false">Clear filters</button>
@@ -128,15 +138,5 @@ function exportPage() {
         </div>
       </details>
     </template>
-    <div v-if="page.id === 'history'" class="history-description">
-      <div v-if="historyMode === 'summary'" class="history-legend"><span>Mean CPU</span><span>Peak logical CPU</span></div>
-      <template v-else>
-        <p>{{ historyCoreCount }} logical CPUs · {{ coreGroup < 0 ? 'all cores' : coreGroups[coreGroup]?.label }}. Idle traces settle to grey; saturation increases with the latest observed usage. Active traces draw above idle ones. Select a group to identify individual CPUs.</p>
-        <div v-if="legendCores.length" class="core-legend"><span v-for="core in legendCores" :key="core" :style="{ '--core-color': coreColor(core, latestCoreUsage(samples, core), theme as 'dark' | 'light') }">CPU {{ core }}</span></div>
-        <p v-if="!coreHistorySamples">Per-core history is collecting. Older mean / peak observations remain available in the Mean / peak view.</p>
-      </template>
-      <p>{{ samples.length ? samples.length + ' observed readings · ' + (historyMode === 'cores' ? coreHistorySamples + ' with per-core data · ' : '') + 'gaps indicate missing readings.' : 'No CPU history available yet. Readings appear as this peer observes heartbeats.' }}</p>
-      <p>Observed by {{ snapshot?.servingNode || 'this peer' }} · up to five minutes · resets on restart and changes with the serving peer.</p>
-    </div>
   </section>
 </template>

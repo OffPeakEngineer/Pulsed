@@ -41,10 +41,10 @@ export function parsePulsedSnapshot(value) {
             return { index: number(core.index), percent: number(core.percent, 0, 100) };
         });
         return {
-            name, state: state, ageSeconds: number(node.ageSeconds), updatedAt: number(node.updatedAt),
+            name, ...(node.role === undefined ? {} : { role: string(node.role) }), state: state, ageSeconds: number(node.ageSeconds), updatedAt: number(node.updatedAt),
             ttlSeconds: number(node.ttlSeconds, 1), version: string(node.version), webURL: string(node.webURL),
             cpu: { average: percent(cpu.average), peak: percent(cpu.peak), count: number(cpu.count), ...(cores ? { cores } : {}) },
-            memory: { percent: percent(memory.percent), label: string(memory.label) }, load: load,
+            memory: { percent: percent(memory.percent), label: string(memory.label), ...(memory.total === undefined ? {} : { total: number(memory.total) }) }, load: load,
         };
     });
     const history = Object.assign(Object.create(null), Object.fromEntries(Object.entries(record(root.history)).map(([name, values]) => [name,

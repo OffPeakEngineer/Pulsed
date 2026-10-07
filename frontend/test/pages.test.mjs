@@ -54,8 +54,11 @@ test('portable pages retain trusted provider and Shipkit payloads after hydratio
  }
  const overview=hydratePage(page('overview'),{...context,nodes:[{...node,name:'rack <script> $& $1'}]});
  assert.match(overview.svg,/data-pulsed-node="rack &lt;script&gt; \$&amp; \$1"/);
- assert.match(overview.svg,/CPU 0.0%/);
+ assert.match(overview.svg,/2 logical CPUs/);
+ assert.doesNotMatch(overview.svg,/CPU 0.0%/);
  const detail=hydratePage(page('node'),context);
+ assert(sceneFromSvg(detail.svg).root.children.find(n=>n.id==='node-current-metrics').transform.y > 0);
+ assert.match(detail.svg,/CPU observation history above/);
  assert.match(detail.svg,/@versytl\/shipkit\/dashboard-widget/);
  function find(node,id) {if(node.id===id)return node;return node.kind==='group' ? node.children.map(n=>find(n,id)).find(Boolean) : undefined;}
  assert.equal(find(sceneFromSvg(detail.svg).root,'node-memory:fill').fill.color,colors.accent);
@@ -76,4 +79,11 @@ test('node exports include individual CPU bars alongside the gauges',()=>{
  const svg=nodePageWithCoreBars(rendered,detailed,colors,'dark');
  assert.equal((svg.match(/data-core="/g)||[]).length,2);assert.match(svg,/@pulsed\/dashboard\/node/);assert.match(svg,/@pulsed\/telemetry\/core-bars/);
  assert.equal(nodePageWithCoreBars(rendered,node,colors,'dark'),rendered);
+});
+
+test('node directory preserves role and capacity across fresh and offline snapshots',()=>{
+ const data = parsePulsedSnapshot({...snapshot,nodes:[{...node,role:'Worker',memory:{...node.memory,total:128*2**30}}]});
+ const result=hydratePage(page('overview'),{snapshot:data,selected:node.name,nodes:data.nodes,windowMs:60000,width:320,colors});
+ assert.match(result.svg,/Worker/);assert.match(result.svg,/128.0 GiB RAM/);assert.doesNotMatch(result.svg,/data-core=/);
+ assert.throws(()=>parsePulsedSnapshot({...snapshot,nodes:[{...node,role:42}]}));
 });

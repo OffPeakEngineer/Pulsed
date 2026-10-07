@@ -9,6 +9,15 @@ The result is intentionally simple: every node can serve the UI, every node shar
 Deeper docs live in `docs/`; this README stays focused on quick start and common
 deployment paths.
 
+The main dashboard is the cluster performance overview, with one tiny 0–100% bar
+per logical CPU. Each card links to its CPU history and node detail in Stasis.
+Stasis opens to a node directory showing role, logical CPU count, memory capacity,
+and version. Choose a node to see CPU history above its current metrics and core
+inspection. `PULSED_ROLE` is an optional descriptive label published by each node;
+older peers show “Role not set.” Specs remain visible for offline nodes, while
+current utilization stays unavailable. Existing `#history` links open the combined
+node page. SVG exports include the displayed history, current metrics, and core bars.
+
 ## Features
 
 - **Cluster htop view**: CPU, memory, load, freshness, and offline status for every known node.
@@ -96,6 +105,7 @@ export PULSED_SEEDS="10.0.1.20:7946,10.0.1.21:7946" # explicit peer sync address
 export PULSED_DB="./data"                          # local state directory
 export PULSED_WEB="true"                           # set false for sync-only nodes
 export PULSED_NODE_NAME="rack-a-01"                # optional stable node identity override
+export PULSED_ROLE="worker"                        # optional node role shown in Stasis
 export PULSED_NODE_TTL="15s"                       # how long this node's heartbeat stays online
 ./pulsed
 ```
@@ -219,9 +229,10 @@ That example also includes a low-priority host-only fallback route. If Traefik s
 
 ## Notes
 
-**Open Stasis Pages** in the dashboard opens `/pages/`: an Overview of selectable
-node cards, Node detail with CPU/memory gauges and core inspection, and CPU
-history with mean/peak trends and portable SVG export. Search, sorting, density,
+**Open Stasis Pages** opens `/pages/`: a directory of selectable node cards with
+roles and specs, plus a combined node page with CPU history above CPU/memory
+gauges and core inspection. Both logical CPU traces and mean/peak trends are
+available, with portable SVG export. Search, sorting, density,
 theme, selected node, window, and pause state survive page changes and peer
 rebasing. Failed refreshes retain the last snapshot and show a retry notice.
 The classic dashboard remains at `/` and is available without JavaScript.

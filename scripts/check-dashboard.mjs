@@ -13,23 +13,11 @@ try {
  await page.goto(baseURL);
  await page.waitForFunction(()=>document.documentElement.classList.contains('versytl-ready'));
  await page.getByRole('button',{name:'Pause refresh',exact:true}).click();
- assert.equal(await page.locator('#cpu-history svg').count(),1);
- await page.locator('[data-name="compute-192"] .inspect-history').click();
- assert.equal(await page.locator('#inspect-node').inputValue(),'compute-192');
- assert.equal(await page.locator('#inspect-title').textContent(),'compute-192');
- await page.locator('#history-window').selectOption('60000');
- assert.match(await page.locator('#history-note').textContent(),/observed readings/);
- const exported=page.waitForEvent('download');
- await page.getByRole('button',{name:'Export SVG',exact:true}).click();
- const download=await exported;
- const content=await (await import('node:fs/promises')).readFile(await download.path(),'utf8');
- assert.match(content,/metadata id="stasis-page"/);
- assert.match(content,/@versytl\/shipkit\/dashboard-widget/);
- assert.match(content,/compute-192 CPU history/);
- await page.locator('#inspect-node').selectOption('rack-07');
- assert.match(await page.locator('#history-note').textContent(),/No CPU history/);
- assert(await page.locator('#export-history').isDisabled());
- await page.locator('#inspect-node').selectOption('compute-192');
+ assert.equal(await page.locator('#node-inspector').count(),0);
+ assert.equal(await page.locator('[data-name="compute-192"] .core-bar').count(),192);
+ assert.equal(await page.locator('[data-name^="large-host"] .core-bar').count(),1024);
+ const nodeLink=new URL(await page.locator('[data-name="compute-192"] .node-detail-link').getAttribute('href'));
+ assert.equal(nodeLink.searchParams.get('focus'),'compute-192');assert.equal(nodeLink.hash,'#node');
  const sizes=[];
  for (const width of [320,390,768,1024,1440,2560]) {
   await page.setViewportSize({width,height:900});
@@ -73,9 +61,6 @@ try {
  await page.waitForFunction(()=>document.querySelector('[data-name^="large-host"] details').open);
  assert.equal(await detail.evaluate(el=>el.scrollTop),700);
  assert.equal(await page.getByRole('button',{name:'Resume refresh',exact:true}).count(),1);
- assert.equal(await page.locator('#inspect-node').inputValue(),'compute-192');
- assert.equal(await page.locator('#history-window').inputValue(),'60000');
- assert.match(await page.locator('#inspect-cpu').textContent(),/^74\.0% mean/);
  assert.equal(await page.locator('[data-name="compute-192"]').getAttribute('data-cpu-avg'),'74.000');
  await page.locator('#node-search').fill('compute-192');
  assert.equal(await page.locator('.cell:visible').count(),1);
@@ -161,5 +146,5 @@ try {
  assert.equal(await failed.getByRole('button',{name:'Resume refresh',exact:true}).count(),1);
  await failed.getByRole('button',{name:'Refresh now',exact:true}).click();
  await failed.locator('#snapshot-notice').waitFor({state:'hidden'});
- console.log(JSON.stringify({sizes,errors,checks:'Versytl charts, SVG export, missing history, layout, bounded 1024-core detail, in-place refresh state, search, filters, theme'},null,2));
+ console.log(JSON.stringify({sizes,errors,checks:'CPU bars, Stasis detail links, layout, bounded 1024-core detail, in-place refresh state, search, filters, theme'},null,2));
 } finally { await browser.close(); }

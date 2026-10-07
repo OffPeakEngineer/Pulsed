@@ -274,10 +274,10 @@ meter::-webkit-meter-suboptimum-value { background: var(--stale); }
 meter::-webkit-meter-even-less-good-value { background: var(--offline); }
 meter::-moz-meter-bar { background: var(--fresh); }
 .metric-note { margin-top: 7px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
-.core-map { display: flex; gap: 3px; height: 18px; margin-top: 12px; }
-.core-band { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--fresh); opacity: .65; }
-.core-band.medium { background: var(--stale); opacity: .85; }
-.core-band.high { background: var(--offline); opacity: 1; }
+.core-map { display:grid; grid-template-columns:repeat(auto-fill,minmax(5px,1fr)); gap:3px 2px; margin-top:12px; max-height:56px; overflow:auto; overscroll-behavior:contain; }
+.core-bar { height:11px; background:var(--border); display:flex; align-items:end; }
+.core-bar i { display:block; width:100%; background:var(--core-color); height:var(--usage); }
+.node-detail-link { display:block; margin-top:12px; font-size:12px; }
 .load { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; border-top: 1px solid var(--border); margin-top: 14px; padding-top: 12px; }
 .load dt { font-size: 10px; color: var(--muted); }
 .load dd { font-size: 15px; margin-top: 4px; overflow-wrap: anywhere; }
@@ -295,7 +295,7 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
 :root[data-density='compact'] .nodes { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 10px; }
 :root[data-density='compact'] .cell { padding: 12px; }
 :root[data-density='compact'] .metric { margin-top: 12px; }
-:root[data-density='compact'] .core-map, :root[data-density='compact'] .map-note { display: none; }
+
 @media (max-width: 480px) {
   body { font-size: 13px; }
   .masthead { align-items: flex-start; gap: 16px; }
@@ -321,36 +321,7 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
 .masthead h1 { font-size: 32px; }
 .masthead .eyebrow { font-size: 13px; }
 .summary { background: var(--surface); padding: 18px; border: 1px solid var(--border); border-radius: 12px; }
-.inspector { margin: 0 0 24px; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); min-width: 0; }
-.inspector-heading { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; justify-content: space-between; }
-.inspector-heading h2 { font-size: 20px; overflow-wrap: anywhere; margin-bottom: 6px; }
-.inspector-heading > div:first-child { flex: 1 1 250px; min-width: 0; }
-.inspector-controls { display: none; flex-wrap: wrap; gap: 12px; align-items: end; }
-.versytl-ready .inspector-controls { display: flex; }
-.inspect-history { display: none; width: 100%; margin-top: 12px; font-size: 12px; }
-.versytl-ready .inspect-history { display: block; }
-.cell[data-selected='true'] { border-color: var(--accent); }
-.inspection-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin: 18px 0 12px; }
-.inspection-metrics dt { color: var(--muted); font-size: 11px; margin-bottom: 6px; }
-.inspection-metrics dd { font-size: 13px; overflow-wrap: anywhere; }
-#inspect-memory-meter { margin-top: 8px; max-width: 300px; }
-#inspect-memory-meter svg { display: block; width: 100%; height: 8px; }
-.history-chart { min-width: 0; }
-.history-chart svg { display: block; width: 100%; height: auto; max-height: 360px; }
-.history-legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 12px; margin: 8px 0; }
-.history-legend span::before { content: ''; display: inline-block; width: 18px; height: 3px; margin-right: 8px; vertical-align: middle; background: var(--accent); }
-.history-legend .peak::before { background: var(--stale); }
-.history-caption { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-button:disabled { cursor: default; opacity: .6; }
 .snapshot-notice { color: var(--stale); font-size: 12px; margin: 10px 0; }
-@media (max-width: 640px) {
-  .inspection-metrics { grid-template-columns: 1fr; gap: 12px; }
-  .inspector { padding: 14px; }
-  .inspector-controls { width: 100%; }
-  .inspector-controls .control { flex: 1 1 120px; min-width: 0; }
-  .inspector-controls select { width: 100%; min-height: 44px; font-size: 16px; }
-  #export-history { width: 100%; min-height: 44px; }
-}
 </style>
 <script>
 (function() {
@@ -432,6 +403,10 @@ button:disabled { cursor: default; opacity: .6; }
     applyControls();
 
     const expanded = Array.isArray(restored.expanded) ? restored.expanded : [];
+    for (const saved of Array.isArray(restored.barScroll) ? restored.barScroll : []) {
+      const map = cards.find(card => card.dataset.name === saved.name)?.querySelector('.core-map');
+      if (map) map.scrollTop = Number(saved.scroll) || 0;
+    }
     for (const card of cards) {
       const details = card.querySelector('.core-details');
       const saved = expanded.find(item => item && item.name === card.dataset.name);
@@ -443,12 +418,12 @@ button:disabled { cursor: default; opacity: .6; }
       const keyboardFocus = active && active.matches(':focus-visible');
       return {
         sort: sort.value, search: search.value, density: density.value,
-        selected: byId('inspect-node').value, historyWindow: byId('history-window').value,
         stale: stale.checked, offline: offline.checked, paused, display: display.open,
         scroll: window.scrollY,
+        barScroll: cards.filter(card => card.querySelector('.core-map')?.scrollTop).map(card => ({name: card.dataset.name, scroll: card.querySelector('.core-map').scrollTop})),
         focus: keyboardFocus ? active.id : null,
         focusNode: keyboardFocus && card ? card.dataset.name : null,
-        focusPart: active && active.matches('summary') ? 'summary' : active && active.matches('.core-scroll') ? '.core-scroll' : active && active.matches('button') ? 'button.inspect-history' : 'a',
+        focusPart: active && active.matches('summary') ? 'summary' : active && active.matches('.core-scroll') ? '.core-scroll' : active && active.matches('.core-map') ? '.core-map' : 'a',
         expanded: cards.filter(card => card.querySelector('.core-details[open]')).map(card => ({name: card.dataset.name, scroll: card.querySelector('.core-scroll').scrollTop}))
       };
     }
@@ -461,8 +436,7 @@ button:disabled { cursor: default; opacity: .6; }
     byId('open-pages').addEventListener('click', event => {
       const state = viewState();
       const url = new URL(event.currentTarget.href, location.href);
-      for (const [key, value] of Object.entries({theme, palette, focus: state.selected,
-        window: state.historyWindow, q: state.search, density: state.density,
+      for (const [key, value] of Object.entries({theme, palette, q: state.search, density: state.density,
         sort: ({cpuAvg:'cpu',cpuMax:'cpu',memPct:'memory',memUsed:'memory',load1:'load'})[state.sort] || 'name',
         paused: state.paused ? '1' : '', hide: [state.stale ? 'stale' : '', state.offline ? 'offline' : ''].filter(Boolean).join(',')})) {
         if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
@@ -487,10 +461,12 @@ button:disabled { cursor: default; opacity: .6; }
           if (!nextNodes || !seed) throw new Error('Missing dashboard snapshot');
           const snapshot = JSON.parse(seed.dataset.snapshot);
           // Defer a completed fetch if the operator began interacting while it ran.
-          if (document.activeElement.matches('input, select, button:focus-visible, summary:focus-visible, .core-scroll:focus-visible, a:focus-visible') && document.activeElement.id !== 'refresh-now') return;
+          if (document.activeElement.matches('input, select, button:focus-visible, summary:focus-visible, .core-scroll:focus-visible, .core-map:focus-visible, a:focus-visible') && document.activeElement.id !== 'refresh-now') return;
           nodes.replaceChildren(...nextNodes.children);
           cards = Array.from(nodes.querySelectorAll('.cell'));
           for (const card of cards) {
+            const barSaved = state.barScroll.find(item => item.name === card.dataset.name);
+            if (barSaved && card.querySelector('.core-map')) card.querySelector('.core-map').scrollTop = barSaved.scroll;
             const saved = state.expanded.find(item => item.name === card.dataset.name);
             if (saved && card.querySelector('.core-details')) {
               card.querySelector('.core-details').open = true;
@@ -535,7 +511,7 @@ button:disabled { cursor: default; opacity: .6; }
       if (paused) return;
       timer = setTimeout(() => {
         // Let an active keyboard interaction finish before replacing the document.
-        if (document.hidden || document.activeElement.matches('input, select, button:focus-visible, summary:focus-visible, .core-scroll:focus-visible, a:focus-visible')) { schedule(); return; }
+        if (document.hidden || document.activeElement.matches('input, select, button:focus-visible, summary:focus-visible, .core-scroll:focus-visible, .core-map:focus-visible, a:focus-visible')) { schedule(); return; }
         navigate(refreshURL);
       }, refreshMs);
     }
@@ -551,7 +527,7 @@ button:disabled { cursor: default; opacity: .6; }
     requestAnimationFrame(() => {
       let focusTarget = typeof restored.focus === 'string' ? byId(restored.focus) : null;
       const focusCard = cards.find(card => card.dataset.name === restored.focusNode && !card.hidden);
-      if (focusCard) focusTarget = focusCard.querySelector(allowed(restored.focusPart, ['summary', '.core-scroll', 'a', 'button.inspect-history'], 'summary'));
+      if (focusCard) focusTarget = focusCard.querySelector(allowed(restored.focusPart, ['summary', '.core-scroll', '.core-map', 'a'], 'summary'));
       if (focusTarget) focusTarget.focus({preventScroll: true});
       window.scrollTo(0, Number(restored.scroll) || 0);
     });
@@ -572,21 +548,6 @@ button:disabled { cursor: default; opacity: .6; }
   {{if .Summary.HasHot}}<span class="hot-node muted">hottest <strong>{{.Summary.Hottest}}</strong> · {{printf "%.0f" .Summary.HotCPU}}% CPU · {{printf "%.2f" .Summary.HotLoad}} load</span>{{else}}<span class="muted">No fresh nodes yet</span>{{end}}
 </div>
 <p id="snapshot-notice" class="snapshot-notice" role="status" hidden>Refresh unavailable. Showing the last snapshot; retrying automatically when refresh is enabled.</p>
-<section class="inspector" id="node-inspector" aria-label="Node inspection">
-  <div class="inspector-heading">
-    <div><p class="eyebrow">NODE INSPECTION</p><h2 id="inspect-title">CPU history</h2><p id="inspect-state" class="history-caption">Current metrics are available in the node cards below.</p></div>
-    <div class="inspector-controls">
-      <label class="control" for="inspect-node">Node<select id="inspect-node"></select></label>
-      <label class="control" for="history-window">History window<select id="history-window"><option value="60000">Last minute</option><option value="300000" selected>Last 5 minutes</option></select></label>
-      <button id="export-history" type="button" disabled>Export SVG</button>
-    </div>
-  </div>
-  <dl class="inspection-metrics"><div><dt>CPU · MEAN / PEAK CORE</dt><dd id="inspect-cpu">See node cards</dd></div><div><dt>MEMORY</dt><dd id="inspect-memory">See node cards</dd><div id="inspect-memory-meter"></div></div><div><dt>LOAD · 1m / 5m / 15m</dt><dd id="inspect-load">See node cards</dd></div></dl>
-  <div id="cpu-history" class="history-chart"></div>
-  <div class="history-legend" aria-label="CPU history legend"><span>Mean CPU</span><span class="peak">Peak logical CPU</span></div>
-  <p id="history-note" class="history-caption">CPU trends use recent readings observed by this peer. Enable JavaScript to inspect graphs.</p>
-  <p id="history-source" class="history-caption">Up to five minutes of history; resets on restart and changes with the serving peer.</p>
-</section>
 <section class="toolbar" aria-label="Dashboard controls">
   <div>
     <div class="group view-controls">
@@ -621,8 +582,7 @@ button:disabled { cursor: default; opacity: .6; }
         <div class="metric-heading"><span class="metric-label">CPU <small>· {{.CoreCount}} logical</small></span>{{if .CoreCount}}<strong>{{printf "%.0f" .CPUAvg}}<small>% avg</small></strong>{{else}}<span>Unavailable</span>{{end}}</div>
         {{if .CoreCount}}<meter min="0" max="100" low="55" high="80" optimum="0" value="{{.CPUAvg}}" aria-label="Average CPU usage">{{printf "%.1f" .CPUAvg}}%</meter>
         <p class="metric-note">Peak core {{printf "%.1f" .CPUMax}}%</p>
-        <div class="core-map" aria-hidden="true">{{range .Bands}}<span class="core-band {{.Level}}" title="CPU {{.First}}–{{.Last}} · peak {{printf "%.1f" .Peak}}%"></span>{{end}}</div>
-        <p class="metric-note map-note">{{len .Bands}} bands · peak per group · detail below</p>{{end}}
+        <div class="core-map" tabindex="0" role="region" aria-label="One bar per logical CPU, 0 to 100 percent">{{range .Cores}}<span class="core-bar" title="CPU {{.Index}} · {{printf "%.1f" .Percent}}%" style="--usage:{{printf "%.1f" .Percent}}%;--core-color:{{coreColor .Index .Percent}}"><i></i></span>{{end}}</div>{{end}}
       </section>
       <section class="metric" aria-label="Memory summary">
         <div class="metric-heading"><span class="metric-label">Memory</span>{{if .MemTotal}}<strong>{{printf "%.0f" .MemPct}}<small>%</small></strong>{{else}}<span>Unavailable</span>{{end}}</div>
@@ -634,7 +594,7 @@ button:disabled { cursor: default; opacity: .6; }
       </div></div></details>{{end}}
     {{end}}
     {{if .Version}}<p class="version">{{.Version}}</p>{{end}}
-    <button class="inspect-history" type="button" aria-pressed="false" aria-label="Inspect history for {{.Name}}">Inspect history</button>
+    <a class="node-detail-link" data-node="{{.Name}}" href="{{nodeDetailURL $.PagesURL .Name}}">CPU history &amp; node detail</a>
   </article>
   {{end}}
   </div>

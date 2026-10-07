@@ -4,10 +4,10 @@ import type { BridgeSourceAdapter } from './vendor/bridge/types.js'
 import type { Observation } from './types.js'
 
 export type PulsedNode = {
-  name: string; state: 'fresh' | 'stale' | 'offline'; ageSeconds: number; updatedAt: number
+  name: string; role?: string; state: 'fresh' | 'stale' | 'offline'; ageSeconds: number; updatedAt: number
   ttlSeconds: number; version: string; webURL: string
   cpu: { average: number | null; peak: number | null; count: number; cores?: { index: number; percent: number }[] }
-  memory: { percent: number | null; label: string }; load: [number, number, number] | null
+  memory: { percent: number | null; label: string; total?: number }; load: [number, number, number] | null
 }
 export type PulsedSnapshot = {
   schemaVersion: 1; generatedAt: number; servingNode: string; refreshMs: number; refreshURL: string
@@ -50,10 +50,10 @@ export function parsePulsedSnapshot(value: unknown): PulsedSnapshot {
       return { index: number(core.index), percent: number(core.percent, 0, 100) }
     })
     return {
-      name, state: state as PulsedNode['state'], ageSeconds: number(node.ageSeconds), updatedAt: number(node.updatedAt),
+      name, ...(node.role === undefined ? {} : { role: string(node.role) }), state: state as PulsedNode['state'], ageSeconds: number(node.ageSeconds), updatedAt: number(node.updatedAt),
       ttlSeconds: number(node.ttlSeconds, 1), version: string(node.version), webURL: string(node.webURL),
       cpu: { average: percent(cpu.average), peak: percent(cpu.peak), count: number(cpu.count), ...(cores ? { cores } : {}) },
-      memory: { percent: percent(memory.percent), label: string(memory.label) }, load: load as PulsedNode['load'],
+      memory: { percent: percent(memory.percent), label: string(memory.label), ...(memory.total === undefined ? {} : { total: number(memory.total) }) }, load: load as PulsedNode['load'],
     }
   })
   const history = Object.assign(Object.create(null), Object.fromEntries(Object.entries(record(root.history)).map(([name, values]) => [name,

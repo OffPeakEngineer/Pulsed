@@ -9,7 +9,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const project = join(root, 'frontend/pages');
 const dashboards = join(project, 'dashboards');
 await mkdir(dashboards, { recursive: true });
-for (const [index, id] of ['overview', 'node', 'history'].entries()) {
+await rm(join(dashboards, "3_history.svg"), { force: true });
+for (const [index, id] of ['overview', 'node'].entries()) {
   await writeFile(join(dashboards, `${index + 1}_${id}.svg`), authoredPage(id) + '\n');
 }
 const nuxtPackage = JSON.parse(await readFile(join(root, 'node_modules/nuxt/package.json')));

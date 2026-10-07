@@ -231,6 +231,30 @@ Follow-up validation on 2026-10-05:
   and requires dependency remediation before stable publication. Dependency
   versions and the audit gate were not changed in this follow-up.
 
+## Dashboard consolidation — 2026-10-07
+
+The main dashboard is now the single performance overview. CPU group squares
+are replaced by one fixed-scale bar per logical CPU, with a bounded, keyboard
+scrollable area on large nodes. Its separate node inspector is removed; each
+card opens the combined Stasis node page on the current serving peer.
+
+Stasis now has two tabs: a node directory with role, logical CPU count, memory
+capacity, and version; and CPU history above current node gauges/core detail.
+`PULSED_ROLE` is an optional heartbeat label. Directory specs remain available
+for offline nodes, while current utilization remains unavailable. The directory
+does not request per-core data. The combined node view requests current cores
+and per-core history together; exported SVGs retain both and their Scene payloads.
+Existing `#history` bookmarks select the combined node tab after Nuxt mounts.
+
+Validation: generated Pages build, Vue typecheck, 16 frontend tests, Go tests,
+race tests, and vet pass. Both browser suites pass. The main dashboard browser suite passes across widths 320–2560, including
+1,024-core scroll bounds, no-JavaScript inspection, and in-place refresh state.
+The Stasis browser suite checks the node directory, combined layout, logical CPU
+traces/grouping, exports, offline/empty states, proxy routing, mobile controls,
+and legacy bookmarks. Desktop directory and mobile combined-page screenshots
+were visually inspected using synthetic data. Live cluster deployment remains
+untested; no release or deployment was performed.
+
 ## Related planning
 
 - `history_and_navigable_dashboard.md`

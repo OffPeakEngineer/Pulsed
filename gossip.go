@@ -14,6 +14,7 @@ var appVersion = "dev"
 
 type NodeStats struct {
 	Name       string     `json:"name"`
+	Role       string     `json:"role,omitempty"`
 	Version    string     `json:"version,omitempty"`
 	WebURL     string     `json:"web,omitempty"`
 	TTLSeconds int        `json:"ttl,omitempty"`

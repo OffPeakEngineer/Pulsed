@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -29,6 +30,23 @@ var templateFS embed.FS
 
 var pageTmpl = template.Must(
 	template.New("dashboard.html").Funcs(template.FuncMap{
+		"nodeDetailURL": func(base, name string) string {
+			if base == "" {
+				base = "./pages/"
+			}
+			target, _ := url.Parse(base)
+			query := target.Query()
+			query.Set("focus", name)
+			target.RawQuery = query.Encode()
+			target.Fragment = "node"
+			return target.String()
+		},
+		"coreColor": func(index int, percent float64) template.CSS {
+			if percent <= 1 {
+				return "#65707c"
+			}
+			return template.CSS(fmt.Sprintf("hsl(%.0f %.0f%% 45%%)", math.Mod(float64(index)*137.508, 360), math.Min(100, percent)*0.85))
+		},
 		"json": func(value any) (string, error) {
 			encoded, err := json.Marshal(value)
 			return string(encoded), err
@@ -57,6 +75,7 @@ func collectStats(hostname, webURL, version string, ttl time.Duration) (NodeStat
 	}
 	stats := NodeStats{
 		Name:      hostname,
+		Role:      strings.TrimSpace(os.Getenv("PULSED_ROLE")),
 		Version:   version,
 		WebURL:    webURL,
 		CPU:       cpuPcts,

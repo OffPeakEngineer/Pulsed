@@ -83,7 +83,7 @@ The Versytl integration uses Shipkit dashboard/progress factories, Scene SVG
 export, Stasis documents and Pages, and Bridge's explicit source registry. The
 source snapshot is pinned by commit and hash in `frontend/vendor/manifest.json`;
 it does not depend on the untracked local `versytl` symlink. Pulsed owns telemetry
-adaptation in `frontend/charts.ts` and browser inspection in `frontend/main.ts`.
+adaptation in `frontend/charts.ts` and node detail links in `frontend/main.ts`.
 
 When changing frontend source, run:
 
@@ -122,7 +122,8 @@ alongside the visible Pulsed name; asset links retain routed peer queries.
 `frontend/pulsed-source.ts` registers `pulsed/snapshot@1` with Bridge. The host
 chooses the same-origin endpoint and refresh policy; SVG metadata cannot import
 code or choose a network origin. `frontend/pages-scenes.ts` registers versioned
-Overview, Node, and History providers and retains their payloads in exported
+node directory and combined node providers (with a legacy History provider for
+portable documents) and retains their payloads in exported
 scene metadata. Unknown providers or versions keep their saved SVG.
 
 `GET /api/v1/snapshot`, `/api/v1/nodes`, and `/api/v1/cpu-history` return the same

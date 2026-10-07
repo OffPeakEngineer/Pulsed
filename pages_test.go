@@ -69,10 +69,13 @@ func TestPagesEmbeddedRoutingAndJSONEndpoint(t *testing.T) {
 		t.Fatalf("pages status %d", rr.Code)
 	}
 	body := rr.Body.String()
-	for _, want := range []string{`src="/proxy/pages/pulsed-pages.js?pulsed_node=node-a&amp;theme=light"`, `baseURL:"/proxy/pages/"`, `id="tab-history"`, `href="/proxy/?pulsed_node=node-a&amp;theme=light"`} {
+	for _, want := range []string{`src="/proxy/pages/pulsed-pages.js?pulsed_node=node-a&amp;theme=light"`, `baseURL:"/proxy/pages/"`, `id="tab-node"`, `href="/proxy/?pulsed_node=node-a&amp;theme=light"`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("pages missing %q", want)
 		}
+	}
+	if strings.Contains(body, `id="tab-history"`) {
+		t.Fatal("separate history tab remains")
 	}
 	if strings.Contains(body, `rel="prefetch"`) || strings.Contains(body, `type="importmap"`) {
 		t.Fatal("unbundled browser dependencies remain")
@@ -107,5 +110,17 @@ func TestSnapshotRequestsCurrentCoresAndSelectedHistoryIndependently(t *testing.
 	}
 	if snapshot.History["a"][0].CoreTenths != nil || len(snapshot.History["b"][0].CoreTenths) != 1 || snapshot.History["c"][0].CoreTenths != nil {
 		t.Fatal("history selection failed")
+	}
+}
+
+func TestNodeDirectorySpecsSurviveOfflineState(t *testing.T) {
+	s := NodeStats{Name: "worker", Role: "compute", CPU: []float64{10, 20}, MemTotal: 128 << 30}
+	snapshot := makeAPISnapshot([]NodeStats{s}, newCPUHistory(), "peer", httptest.NewRequest("GET", "/api/v1/snapshot", nil), time.Now())
+	node := snapshot.Nodes[0]
+	if node.Role != "compute" || node.Memory.Total != 128<<30 || node.CPU.Count != 2 {
+		t.Fatalf("missing directory specs: %+v", node)
+	}
+	if node.CPU.Average != nil || node.Memory.Percent != nil {
+		t.Fatal("offline node exposes current utilization")
 	}
 }
