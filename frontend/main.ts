@@ -1,3 +1,25 @@
+import { orderClusterCores, type CoreOrder } from './core-order.ts'
+
+function orderOverviewCores() {
+  const select = document.getElementById('core-order') as HTMLSelectElement
+  const host = document.getElementById('cluster-cores')!
+  const cores = Array.from(host.querySelectorAll<HTMLElement>('.core-bar'), element => ({
+    node: element.dataset.node!, index: Number(element.dataset.core), percent: Number(element.dataset.percent), element,
+  }))
+  host.replaceChildren(...orderClusterCores(cores, select.value as CoreOrder).map(core => core.element))
+  document.getElementById('cluster-cores-empty')!.hidden = cores.length !== 0
+}
+orderOverviewCores()
+// The inline dashboard controller restores saved preferences at DOMContentLoaded.
+document.addEventListener('DOMContentLoaded', orderOverviewCores)
+document.addEventListener('change', event => {
+  const select = event.target as HTMLSelectElement
+  if (select.id !== 'core-order') return
+  try { localStorage.setItem('pulsed-core-order', select.value) } catch {}
+  orderOverviewCores()
+})
+document.addEventListener('pulsed:snapshot', orderOverviewCores)
+
 // Node inspection lives in Stasis; the performance overview stays server rendered.
 function attachNodeLinks() {
   const base = document.getElementById('open-pages') as HTMLAnchorElement

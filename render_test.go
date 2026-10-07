@@ -163,6 +163,17 @@ func TestDashboardResponsiveFixtures(t *testing.T) {
 	if strings.Contains(body, "ZgotmplZ") {
 		t.Fatal("template produced unsafe value placeholder")
 	}
+	coreStrip := regexp.MustCompile(`(?s)id="cluster-cores"[^>]*>(.*?)</div>`).FindStringSubmatch(body)
+	expectedCores := 0
+	for _, node := range nodes {
+		expectedCores += len(node.Cores)
+	}
+	if len(coreStrip) != 2 || strings.Count(coreStrip[1], `class="core-bar"`) != expectedCores {
+		t.Fatal("cluster overview lost available core readings")
+	}
+	if !strings.Contains(coreStrip[1], `data-node="compute-192" data-core="191"`) || strings.Contains(coreStrip[1], `data-node="rack-10"`) {
+		t.Fatal("cluster bars lost node/core identity or exposed offline readings")
+	}
 	if !strings.Contains(body, "Inspect 1024 logical CPUs") || !strings.Contains(body, "CPU 1023 usage") {
 		t.Fatal("high-core detail truncated")
 	}

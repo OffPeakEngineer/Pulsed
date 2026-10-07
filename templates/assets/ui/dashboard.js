@@ -1,4 +1,42 @@
+// frontend/core-order.ts
+function orderClusterCores(cores, order) {
+  const identity = (a, b) => a.node.localeCompare(b.node, void 0, { numeric: true }) || a.index - b.index;
+  const sorted = [...cores].sort(order === "node" ? identity : (a, b) => (order === "coldest" ? a.percent - b.percent : b.percent - a.percent) || identity(a, b));
+  if (order !== "eq") return sorted;
+  const centered = new Array(sorted.length);
+  const middle = Math.floor((sorted.length - 1) / 2);
+  sorted.forEach((core, rank) => {
+    const offset = Math.ceil(rank / 2);
+    centered[middle + (rank % 2 ? offset : -offset)] = core;
+  });
+  return centered;
+}
+
 // frontend/main.ts
+function orderOverviewCores() {
+  const select = document.getElementById("core-order");
+  const host = document.getElementById("cluster-cores");
+  const cores = Array.from(host.querySelectorAll(".core-bar"), (element) => ({
+    node: element.dataset.node,
+    index: Number(element.dataset.core),
+    percent: Number(element.dataset.percent),
+    element
+  }));
+  host.replaceChildren(...orderClusterCores(cores, select.value).map((core) => core.element));
+  document.getElementById("cluster-cores-empty").hidden = cores.length !== 0;
+}
+orderOverviewCores();
+document.addEventListener("DOMContentLoaded", orderOverviewCores);
+document.addEventListener("change", (event) => {
+  const select = event.target;
+  if (select.id !== "core-order") return;
+  try {
+    localStorage.setItem("pulsed-core-order", select.value);
+  } catch {
+  }
+  orderOverviewCores();
+});
+document.addEventListener("pulsed:snapshot", orderOverviewCores);
 function attachNodeLinks() {
   const base = document.getElementById("open-pages");
   document.querySelectorAll(".node-detail-link").forEach((link) => {

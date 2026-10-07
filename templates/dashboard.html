@@ -236,6 +236,11 @@ h1 { font-size: 26px; letter-spacing: -1.5px; line-height: 1.2; }
 .stale .status, .summary .stale { color: var(--stale); }
 .offline .status, .summary .offline { color: var(--offline); }
 .hot-node { overflow-wrap: anywhere; }
+.summary-core-heading { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; width:100%; color:var(--muted); font-size:12px; }
+.summary-core-heading label { display:flex; align-items:center; gap:8px; }
+.summary-cores { display:flex; flex-wrap:wrap; gap:3px 2px; width:100%; min-width:0; }
+.summary-cores .core-bar { flex:0 0 6px; }
+.summary-core-empty { color:var(--muted); font-size:12px; }
 .toolbar { align-items: flex-start; justify-content: space-between; margin-bottom: 22px; }
 .toolbar > div { flex: 1 1 580px; min-width: 0; }
 .group { gap: 8px 12px; }
@@ -345,6 +350,8 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
     const nodes = byId('nodes');
     let cards = Array.from(nodes.querySelectorAll('.cell'));
     const sort = byId('sort-select');
+    const coreOrder = allowed(restored.coreOrder || read('core-order', 'node'), ['node', 'hottest', 'coldest', 'eq'], 'node');
+    byId('core-order').value = coreOrder;
     const search = byId('node-search');
     const density = byId('density-select');
     const stale = byId('hide-stale');
@@ -417,7 +424,7 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
       const card = active && active.closest('.cell');
       const keyboardFocus = active && active.matches(':focus-visible');
       return {
-        sort: sort.value, search: search.value, density: density.value,
+        sort: sort.value, coreOrder: byId('core-order').value, search: search.value, density: density.value,
         stale: stale.checked, offline: offline.checked, paused, display: display.open,
         scroll: window.scrollY,
         barScroll: cards.filter(card => card.querySelector('.core-map')?.scrollTop).map(card => ({name: card.dataset.name, scroll: card.querySelector('.core-map').scrollTop})),
@@ -474,6 +481,7 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
             }
           }
           byId('cluster-summary').innerHTML = next.getElementById('cluster-summary').innerHTML;
+          byId('core-order').value = state.coreOrder;
           byId('best-hint').textContent = next.getElementById('best-hint').textContent;
           refreshURL = next.body.dataset.refreshUrl;
           refreshMs = Number(next.body.dataset.refreshMs);
@@ -546,6 +554,9 @@ footer { color: var(--muted); font-size: 11px; margin-top: 24px; overflow-wrap: 
 <div class="summary" id="cluster-summary" aria-label="Cluster health">
   <span class="fresh">online {{.Summary.Fresh}}</span><span class="stale">stale {{.Summary.Stale}}</span><span class="offline">offline {{.Summary.Offline}}</span>
   {{if .Summary.HasHot}}<span class="hot-node muted">hottest <strong>{{.Summary.Hottest}}</strong> · {{printf "%.0f" .Summary.HotCPU}}% CPU · {{printf "%.2f" .Summary.HotLoad}} load</span>{{else}}<span class="muted">No fresh nodes yet</span>{{end}}
+  <div class="summary-core-heading"><span>Cluster logical CPUs</span><label for="core-order">Order by<select id="core-order"><option value="node">Node</option><option value="hottest">Hottest</option><option value="coldest">Coldest</option><option value="eq">EQ mode</option></select></label></div>
+  <div class="summary-cores" id="cluster-cores" role="region" aria-label="Cluster logical CPU usage, one bar per CPU, 0 to 100 percent">{{range .Nodes}}{{$node := .Name}}{{range .Cores}}<span class="core-bar" data-node="{{$node}}" data-core="{{.Index}}" data-percent="{{.Percent}}" title="{{$node}} · CPU {{.Index}} · {{printf "%.1f" .Percent}}%" style="--usage:{{printf "%.1f" .Percent}}%;--core-color:{{coreColor .Index .Percent}}"><i></i></span>{{end}}{{end}}</div>
+  <span class="summary-core-empty" id="cluster-cores-empty" hidden>No core readings available.</span>
 </div>
 <p id="snapshot-notice" class="snapshot-notice" role="status" hidden>Refresh unavailable. Showing the last snapshot; retrying automatically when refresh is enabled.</p>
 <section class="toolbar" aria-label="Dashboard controls">

@@ -10,7 +10,11 @@ Deeper docs live in `docs/`; this README stays focused on quick start and common
 deployment paths.
 
 The main dashboard is the cluster performance overview, with one tiny 0–100% bar
-per logical CPU. Each card links to its CPU history and node detail in Stasis.
+per logical CPU. The overview strip repeats all available core readings, wrapping
+to fit, with Node, Hottest, Coldest, and EQ mode ordering. EQ mode places hotter
+cores toward the center; the selected order persists through refreshes and peer
+changes. Hover a bar to identify its node, CPU, and usage. Each card links to its
+CPU history and node detail in Stasis.
 Stasis opens to a node directory showing role, logical CPU count, memory capacity,
 and version. Choose a node to see CPU history above its current metrics and core
 inspection. `PULSED_ROLE` is an optional descriptive label published by each node;
