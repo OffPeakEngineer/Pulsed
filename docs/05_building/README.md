@@ -181,6 +181,16 @@ The Pages checks cover keyboard selection, proxy/query identity, missing data,
 SVG provider metadata, failure retention, filters, densities, mobile controls,
 core scroll preservation, and pagination for 40 nodes.
 
+To verify app installation against the embedded Go HTTP handler, set
+`PULSED_PWA_BROWSER_NODE` to a Node executable, plus `PULSED_PLAYWRIGHT_MODULE`
+and `PULSED_CHROME` as above, then run `go test -run TestAppBrowser -v`.
+This starts an isolated HTTP test server without joining a cluster and checks
+browser manifest/installability errors, worker scope, proxy and peer routing,
+offline navigation, absence of cached telemetry, and reconnecting in both views.
+The ordinary Go tests also cover manifest identity, icon dimensions, HTTP
+methods, and app resource links. Icons are derived once per daemon from the
+embedded logo; all app resources ship in the same binary.
+
 The development dependency audit is visible but nonblocking by project choice.
 On 2026-10-05, updating semantic-release and its plugins and using Nuxt 4 reduced
 the audit from 69 findings (including three critical) to 22 findings (21 high and

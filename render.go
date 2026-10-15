@@ -596,6 +596,9 @@ type pageData struct {
 	AssetURL     string
 	PagesURL     string
 	LogoURL      string
+	ManifestURL  string
+	AppScriptURL string
+	TouchIconURL string
 }
 
 type dashboardSnapshot struct {
@@ -614,6 +617,9 @@ func makeHandlerWithHistory(db *pebble.DB, selfName string, history *cpuHistory)
 	assets := http.FileServer(http.FS(assetFS))
 	pages := makePagesHandler()
 	return func(w http.ResponseWriter, r *http.Request) {
+		if serveAppResource(w, r) {
+			return
+		}
 		if strings.Contains(r.URL.Path, "/pages/") || strings.HasSuffix(r.URL.Path, "/pages") {
 			pages.ServeHTTP(w, r)
 			return
@@ -672,6 +678,9 @@ func makeHandlerWithHistory(db *pebble.DB, selfName string, history *cpuHistory)
 			AssetURL:     "." + pageURL("/assets/ui/dashboard.js", r.URL.Query()),
 			LogoURL:      "." + pageURL("/assets/branding/pulsed-logo.png", r.URL.Query()),
 			PagesURL:     "." + pageURL("/pages/", r.URL.Query()),
+			ManifestURL:  "." + pageURL("/manifest.webmanifest", r.URL.Query()),
+			AppScriptURL: "." + pageURL("/pwa.js", r.URL.Query()),
+			TouchIconURL: "." + pageURL("/app-icon-180.png", r.URL.Query()),
 			Snapshot: dashboardSnapshot{
 				GeneratedAt: now.UnixMilli(), ServingNode: selfName,
 				Nodes: cells, History: history.snapshot(),

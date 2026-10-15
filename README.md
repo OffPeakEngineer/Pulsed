@@ -27,6 +27,9 @@ node page. SVG exports include the displayed history, current metrics, and core 
 - **Cluster htop view**: CPU, memory, load, freshness, and offline status for every known node.
 - **Responsive node cards**: compact summaries, searchable nodes, two display
   densities, and expandable core readings that stay bounded on large machines.
+- **Installable web app**: optionally install either dashboard from your browser
+  over HTTPS, with a standalone window and an offline connection message.
+  See [installation instructions](docs/02_using/README.md).
 - **Versytl node inspector**: select a node, inspect recent mean/peak CPU trends,
   and export the graph as a portable Stasis SVG.
 - **Hot-potato refresh**: a busy node can bake a lower-load peer into the next browser refresh.

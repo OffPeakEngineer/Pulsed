@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>pulsed · cluster pulse</title>
+<meta name="theme-color" content="#071019">
+<meta name="apple-mobile-web-app-title" content="Pulsed">
+<link rel="manifest" href="{{if .ManifestURL}}{{.ManifestURL}}{{else}}./manifest.webmanifest{{end}}" crossorigin="use-credentials">
+<link rel="apple-touch-icon" href="{{if .TouchIconURL}}{{.TouchIconURL}}{{else}}./app-icon-180.png{{end}}">
+<script defer src="{{if .AppScriptURL}}{{.AppScriptURL}}{{else}}./pwa.js{{end}}"></script>
 <link rel="icon" type="image/png" href="{{if .LogoURL}}{{.LogoURL}}{{else}}./assets/branding/pulsed-logo.png{{end}}">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
