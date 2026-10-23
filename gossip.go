@@ -13,16 +13,17 @@ import (
 var appVersion = "dev"
 
 type NodeStats struct {
-	Name       string     `json:"name"`
-	Role       string     `json:"role,omitempty"`
-	Version    string     `json:"version,omitempty"`
-	WebURL     string     `json:"web,omitempty"`
-	TTLSeconds int        `json:"ttl,omitempty"`
-	CPU        []float64  `json:"cpu"`
-	MemUsed    uint64     `json:"mu"`
-	MemTotal   uint64     `json:"mt"`
-	Load       [3]float64 `json:"ld"`
-	UpdatedAt  int64      `json:"ts"` // unix nano, LWW key
+	Name       string      `json:"name"`
+	Role       string      `json:"role,omitempty"`
+	Version    string      `json:"version,omitempty"`
+	WebURL     string      `json:"web,omitempty"`
+	TTLSeconds int         `json:"ttl,omitempty"`
+	Disks      []DiskStats `json:"disks,omitempty"`
+	CPU        []float64   `json:"cpu"`
+	MemUsed    uint64      `json:"mu"`
+	MemTotal   uint64      `json:"mt"`
+	Load       [3]float64  `json:"ld"`
+	UpdatedAt  int64       `json:"ts"` // unix nano, LWW key
 }
 
 var errStaleVersion = errors.New("stale version")

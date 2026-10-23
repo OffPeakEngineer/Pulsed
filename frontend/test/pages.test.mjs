@@ -87,3 +87,19 @@ test('node directory preserves role and capacity across fresh and offline snapsh
  assert.match(result.svg,/Worker/);assert.match(result.svg,/128.0 GiB RAM/);assert.doesNotMatch(result.svg,/data-core=/);
  assert.throws(()=>parsePulsedSnapshot({...snapshot,nodes:[{...node,role:42}]}));
 });
+
+test('disk cylinders preserve capacity, wrap, expose accessible usage and support old peers',()=>{
+ const disks=Array.from({length:9},(_,i)=>({name:`disk${i}`,total:100,used:i===0?0:95,free:i===0?100:5,mounts:['/','/home']}));
+ const diskNode={...node,disks};
+ const parsed=parsePulsedSnapshot({...snapshot,nodes:[diskNode]});
+ assert.deepEqual(parsed.nodes[0].disks,disks);
+ assert.equal(parsePulsedSnapshot(snapshot).nodes[0].disks,undefined);
+ assert.throws(()=>parsePulsedSnapshot({...snapshot,nodes:[{...node,disks:[{...disks[0],total:-1}]}]}));
+ for(const width of [320,960]) for(const id of ['overview','node']) {
+  const result=hydratePage(page(id),{snapshot:parsed,selected:node.name,nodes:parsed.nodes,windowMs:60000,width,colors});
+  assert.match(result.svg,/<title>disk0: 0.0% used/);assert.match(result.svg,/disk8: 95.0% used/);
+  assert.match(result.svg,/9 disks|Disks · 9/);assert.match(result.svg,/#ef4444/);
+  assert.doesNotMatch(result.svg,/NaN|Infinity/);
+  assert.doesNotMatch(result.svg,/id="(?:node|overview-node-0)-disks-0-fill"/);
+ }
+});

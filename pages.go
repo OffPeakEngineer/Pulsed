@@ -26,6 +26,7 @@ type apiMemory struct {
 }
 
 type apiNode struct {
+	Disks     []DiskStats `json:"disks,omitempty"`
 	Role      string      `json:"role,omitempty"`
 	Name      string      `json:"name"`
 	State     healthState `json:"state"`
@@ -84,6 +85,7 @@ func makeAPISnapshot(nodes []NodeStats, history *cpuHistory, selfName string, r 
 			node.WebURL = pageURL(s.WebURL, displayQuery(r))
 		}
 		if cell.State != healthOffline {
+			node.Disks = cell.Disks
 			validCPU := len(s.CPU) > 0
 			for _, value := range s.CPU {
 				if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 100 {

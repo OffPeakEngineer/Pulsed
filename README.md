@@ -122,6 +122,39 @@ By default, Pulsed uses the OS hostname as the node identity. Set
 would otherwise publish the same hostname. The override must be non-empty and
 must not contain whitespace.
 
+Disk cylinders show one reading per backing disk, with fill proportional to used
+space across its mounted partitions. Yellow starts at 75% and red at 90%. The
+classic dashboard and Stasis node directory/detail include the disk count and
+percentages; focus or hover a classic reading for capacity and mount paths.
+Stasis cylinders expose those details on hover and to assistive technology.
+
+Disk collection is configured separately on each node:
+
+```sh
+export PULSED_DISK_INCLUDE="/,/home,/srv/*"  # optional mount allowlist
+export PULSED_DISK_EXCLUDE="/srv/scratch"    # optional mount denylist; wins over include
+export PULSED_DISK_GROUPS="system=/,/home;archive=/srv/archive" # optional names/groups
+```
+
+Include/exclude accept comma-separated mount paths or shell-style patterns
+(`*` matches within a path segment). Groups use semicolon-separated
+`name=mount,pattern` rules; the first matching rule wins. Without configuration,
+Pulsed includes mounted local device filesystems and skips memory, network, and
+squashfs mounts. Mounted disk images can be excluded with the same mount filters.
+Repeated device mounts/bind mounts count once. Include/exclude
+filters run before deduplication, so a specific alias can be selected explicitly.
+
+Linux resolves partition parents and device-mapper/RAID backing devices through
+sysfs, including NVMe. Pools spanning disks appear together (for example,
+`sda+sdb`): their filesystem capacity cannot be split accurately among individual
+disks. macOS uses `diskutil` to identify APFS containers and their physical stores,
+counting shared container capacity once. APFS readings are omitted when topology
+is unavailable. Unknown layouts retain their device names; manual groups can
+combine them. Btrfs multi-device topology and ZFS pools are not automatically
+resolved. Windows retains volume readings unless manually grouped. Only mounted filesystem capacity is counted; unmounted partitions,
+swap, and unallocated disk space are excluded. Reserved space can make used plus
+free differ from total. Offline nodes and older peers show unavailable readings.
+
 Each node publishes its own heartbeat TTL with `PULSED_NODE_TTL`. Shorter values
 make stale/offline indication react faster; longer values are better for slow or
 lossy networks. The default is `15s`, and values must be at least `2s`.

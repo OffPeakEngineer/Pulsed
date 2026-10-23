@@ -3,7 +3,9 @@ import { createBridgeRegistry } from './vendor/bridge/registry.js'
 import type { BridgeSourceAdapter } from './vendor/bridge/types.js'
 import type { Observation } from './types.js'
 
+export type Disk = { name: string; total: number; used: number; free: number; mounts: string[] }
 export type PulsedNode = {
+  disks?: Disk[]
   name: string; role?: string; state: 'fresh' | 'stale' | 'offline'; ageSeconds: number; updatedAt: number
   ttlSeconds: number; version: string; webURL: string
   cpu: { average: number | null; peak: number | null; count: number; cores?: { index: number; percent: number }[] }
@@ -50,6 +52,10 @@ export function parsePulsedSnapshot(value: unknown): PulsedSnapshot {
       return { index: number(core.index), percent: number(core.percent, 0, 100) }
     })
     return {
+      disks: node.disks === undefined ? undefined : array(node.disks).map(value => {
+        const d = record(value)
+        return { name: string(d.name), total: number(d.total), used: number(d.used), free: number(d.free), mounts: array(d.mounts).map(string) }
+      }),
       name, ...(node.role === undefined ? {} : { role: string(node.role) }), state: state as PulsedNode['state'], ageSeconds: number(node.ageSeconds), updatedAt: number(node.updatedAt),
       ttlSeconds: number(node.ttlSeconds, 1), version: string(node.version), webURL: string(node.webURL),
       cpu: { average: percent(cpu.average), peak: percent(cpu.peak), count: number(cpu.count), ...(cores ? { cores } : {}) },

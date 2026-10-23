@@ -79,6 +79,7 @@ func collectStats(hostname, webURL, version string, ttl time.Duration) (NodeStat
 		Version:   version,
 		WebURL:    webURL,
 		CPU:       cpuPcts,
+		Disks:     collectDisks(),
 		MemUsed:   vmStat.Used,
 		MemTotal:  vmStat.Total,
 		Load:      [3]float64{loadStat.Load1, loadStat.Load5, loadStat.Load15},
@@ -250,6 +251,10 @@ func renderANSI(s NodeStats) string {
 	}
 	sb.WriteString(fmt.Sprintf("Mem   [%s] %5.1f%%\n", pctBar(memPct, barWidth, memSegments), memPct))
 	sb.WriteString(fmt.Sprintf("      %s / %s\n", fmtBytes(s.MemUsed), fmtBytes(s.MemTotal)))
+
+	for _, d := range s.Disks {
+		sb.WriteString(fmt.Sprintf("Disk  [%s] %5.1f%% %s\n", pctBar(d.Percent(), barWidth, []barSegment{{Until: 75, Style: styleCyan}, {Until: 90, Style: styleYellow}, {Until: 100, Style: styleRed}}), d.Percent(), d.Name))
+	}
 
 	loadStyle := styleGreen
 	if s.Load[0] > 2.0 {
@@ -543,6 +548,7 @@ func dashboardCell(s NodeStats) cellData {
 	if health.State == healthOffline {
 		return cell
 	}
+	cell.Disks = s.Disks
 	for i, percent := range s.CPU {
 		percent = metricPercent(percent)
 		cell.Cores = append(cell.Cores, coreData{i, percent})
@@ -561,6 +567,7 @@ func dashboardCell(s NodeStats) cellData {
 }
 
 type cellData struct {
+	Disks       []DiskStats
 	Name        string
 	URL         string
 	Cores       []coreData `json:"-"`

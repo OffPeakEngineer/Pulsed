@@ -5,6 +5,7 @@ import { sceneFromSvg, sceneToSvg, escapeXml } from './vendor/scene/svg.js';
 import { stringifyScene } from './vendor/scene/serialization.js';
 import { parseStasisSvg, serializeStasisDocument, updateStasisDocument } from './vendor/stasis/index.js';
 import { cpuHistoryDocument } from './charts.js';
+import { diskMeters, diskAttributes } from './disk-charts.js';
 import { coreBars, coreBarAttributes } from './core-charts.js';
 const ids = ['overview', 'node', 'history'];
 function text(id, value, x, y, colors, size = 13) {
@@ -20,7 +21,8 @@ function document(root, width, height, metadata, title, description, names = {})
             role: 'button', tabindex: 0, 'aria-label': `Inspect ${names[node.id]}`, 'data-pulsed-node': names[node.id],
         } : node.kind === 'path' && node.metadata?.core !== undefined ? {
             'data-core-trace': Number(node.metadata.core), 'aria-label': `CPU ${node.metadata.core}`, role: 'img',
-        } : coreBarAttributes(node) });
+        } : diskAttributes(node) || coreBarAttributes(node) });
+    svg = svg.replace(/(<g\b[^>]*data-disk-meter="([^"]*)"[^>]*>)/g, (_, opening, label) => `${opening}<title>${label}</title>`);
     svg = svg.replace(/<svg\b[^>]*>/, opening => `${opening}\n<title>${escapeXml(title)}</title>\n<desc>${escapeXml(description)}</desc>`);
     return serializeStasisDocument(updateStasisDocument(parseStasisSvg(svg), { metadata }));
 }
@@ -50,7 +52,8 @@ export const pageProviders = new Map([
                 const cards = nodes.map((node, index) => {
                     const id = `overview-node-${index}`;
                     names[id] = node.name;
-                    const cardHeight = compact ? 204 : 220;
+                    const disks = diskMeters(`${id}-disks`, node.disks, cardWidth - 36, colors);
+                    const cardHeight = (compact ? 204 : 220) + disks.height + 28;
                     const column = index % columns, y = columnHeights[column];
                     columnHeights[column] = y + cardHeight + gap;
                     const capacity = node.memory.total ? `${(node.memory.total / 2 ** 30).toFixed(1)} GiB RAM` : 'Memory capacity unavailable';
@@ -60,7 +63,9 @@ export const pageProviders = new Map([
                         text(`${id}-capacity`, capacity, 18, 104, colors, 12),
                         text(`${id}-role`, compactName(node.role || 'Role not set'), 18, 130, colors, 12),
                         text(`${id}-version`, compactName(node.version || 'Version unavailable'), 18, 154, colors, 12),
-                        text(`${id}-open`, 'CPU history & node detail →', 18, compact ? 184 : 200, colors, 12),
+                        text(`${id}-disk-count`, node.disks?.length ? `${node.disks.length} disk${node.disks.length === 1 ? '' : 's'}` : 'Disks', 18, 180, colors, 12),
+                        { ...disks.root, transform: { x: 18, y: 192, rotation: 0 } },
+                        text(`${id}-open`, 'CPU history & node detail →', 18, cardHeight - 20, colors, 12),
                     ];
                     const card = frame(id, compactName(node.name), cardWidth, cardHeight, colors, content);
                     return { ...card, transform: { x: column * (cardWidth + gap), y, rotation: 0 } };
@@ -95,10 +100,15 @@ export const pageProviders = new Map([
                     theme: context.theme || 'dark', colors, mode: context.historyMode, coreStart: context.coreStart, coreLimit: context.coreLimit });
                 const historyScene = sceneFromSvg(historySvg);
                 const offset = historyScene.height + 64;
+                const metricsHeight = columns === 1 ? height * 2 + gap : height;
+                const disks = diskMeters('node-disks', node?.disks, width - 36, colors);
+                const diskY = offset + metricsHeight + 36;
                 const detail = { id: 'node-current-metrics', kind: 'group', children,
                     transform: { x: 0, y: offset, rotation: 0 } };
                 return document({ id: 'node-root', kind: 'group', children: [historyScene.root,
-                        text('node-detail-heading', 'Node detail', 18, offset - 22, colors, 20), detail] }, width, offset + (columns === 1 ? height * 2 + gap : height), page.metadata, `${node?.name || 'Unknown node'} CPU history and detail`, 'CPU observation history above current CPU and memory usage. Unavailable readings are not zero.');
+                        text('node-detail-heading', 'Node detail', 18, offset - 22, colors, 20), detail,
+                        text('node-disk-heading', `Disks${node?.disks?.length ? ` · ${node.disks.length}` : ''}`, 18, diskY, colors, 18),
+                        { ...disks.root, transform: { x: 18, y: diskY + 18, rotation: 0 } }] }, width, diskY + 18 + disks.height, page.metadata, `${node?.name || 'Unknown node'} CPU history and detail`, 'CPU observation history above current CPU and memory usage. Unavailable readings are not zero.');
             } }],
     ['@pulsed/dashboard/history', { version: 1, render: (page, context) => {
                 const svg = cpuHistoryDocument({ name: context.selected || 'Choose a node', servingNode: context.snapshot.servingNode,
