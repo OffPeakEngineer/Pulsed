@@ -93,6 +93,8 @@ test('disk cylinders preserve capacity, wrap, expose accessible usage and suppor
  const diskNode={...node,disks};
  const parsed=parsePulsedSnapshot({...snapshot,nodes:[diskNode]});
  assert.deepEqual(parsed.nodes[0].disks,disks);
+ const typed=parsePulsedSnapshot({...snapshot,nodes:[{...node,disks:[{...disks[0],type:'nvme'}]}]});
+ assert.equal(typed.nodes[0].disks[0].type,'nvme');
  assert.equal(parsePulsedSnapshot(snapshot).nodes[0].disks,undefined);
  assert.throws(()=>parsePulsedSnapshot({...snapshot,nodes:[{...node,disks:[{...disks[0],total:-1}]}]}));
  for(const width of [320,960]) for(const id of ['overview','node']) {

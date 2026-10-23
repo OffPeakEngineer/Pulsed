@@ -599,6 +599,7 @@ type pageData struct {
 	RefreshURL   string
 	BestHint     string
 	Summary      clusterSummary
+	Pressure     clusterPressure
 	Snapshot     dashboardSnapshot
 	AssetURL     string
 	PagesURL     string
@@ -682,6 +683,7 @@ func makeHandlerWithHistory(db *pebble.DB, selfName string, history *cpuHistory)
 			RefreshURL:   refreshURL,
 			BestHint:     bestHint,
 			Summary:      summarizeCluster(nodes),
+			Pressure:     summarizePressure(nodes),
 			AssetURL:     "." + pageURL("/assets/ui/dashboard.js", r.URL.Query()),
 			LogoURL:      "." + pageURL("/assets/branding/pulsed-logo.png", r.URL.Query()),
 			PagesURL:     "." + pageURL("/pages/", r.URL.Query()),

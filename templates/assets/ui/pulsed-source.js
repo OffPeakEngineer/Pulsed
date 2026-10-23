@@ -43,7 +43,7 @@ export function parsePulsedSnapshot(value) {
         return {
             disks: node.disks === undefined ? undefined : array(node.disks).map(value => {
                 const d = record(value);
-                return { name: string(d.name), total: number(d.total), used: number(d.used), free: number(d.free), mounts: array(d.mounts).map(string) };
+                return { name: string(d.name), ...(d.type === undefined ? {} : { type: string(d.type) }), total: number(d.total), used: number(d.used), free: number(d.free), mounts: array(d.mounts).map(string) };
             }),
             name, ...(node.role === undefined ? {} : { role: string(node.role) }), state: state, ageSeconds: number(node.ageSeconds), updatedAt: number(node.updatedAt),
             ttlSeconds: number(node.ttlSeconds, 1), version: string(node.version), webURL: string(node.webURL),

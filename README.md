@@ -128,6 +128,21 @@ classic dashboard and Stasis node directory/detail include the disk count and
 percentages; focus or hover a classic reading for capacity and mount paths.
 Stasis cylinders expose those details on hover and to assistive technology.
 
+The main dashboard's top summary also shows cluster capacity pressure: one
+cylinder per disk family (`nvme`, `mmc`, `sd`, and other device families), plus a
+memory meter. Fill is total used bytes divided by total capacity across fresh
+nodes, rather than an average of node percentages. Hover or focus for combined
+used/total capacity and contributing disk/pool or node counts. Stale/offline
+readings, missing capacity, and invalid readings are excluded; the summary
+remains cluster-wide when node cards are filtered. Meters show unavailable when
+there are no contributing readings. The meters sit to the right of the CPU
+summary on wide screens and wrap below it on narrow screens.
+
+Device families follow OS device names and do not distinguish SATA SSDs from
+HDDs. New heartbeats preserve the family behind custom disk group names; older
+peers infer it from the published disk name. Groups spanning different families
+appear as `mixed`; unrecognized names appear as `other`.
+
 Disk collection is configured separately on each node:
 
 ```sh

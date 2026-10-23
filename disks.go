@@ -15,6 +15,7 @@ import (
 // accurately to individual physical devices.
 type DiskStats struct {
 	Name   string   `json:"name"`
+	Type   string   `json:"type,omitempty"`
 	Total  uint64   `json:"total"`
 	Used   uint64   `json:"used"`
 	Free   uint64   `json:"free"`
@@ -81,6 +82,7 @@ func aggregateDisks(partitions []disk.PartitionStat, usage func(string) (*disk.U
 			continue
 		}
 		seen[identity.filesystem] = true
+		family := diskFamily(identity.group)
 		for _, rule := range strings.Split(overrides, ";") {
 			pair := strings.SplitN(rule, "=", 2)
 			if len(pair) == 2 && strings.TrimSpace(pair[0]) != "" && mountMatches(p.Mountpoint, pair[1]) {
@@ -90,8 +92,11 @@ func aggregateDisks(partitions []disk.PartitionStat, usage func(string) (*disk.U
 		}
 		d := groups[identity.group]
 		if d == nil {
-			d = &DiskStats{Name: identity.group}
+			d = &DiskStats{Name: identity.group, Type: family}
 			groups[identity.group] = d
+		}
+		if d.Type != family {
+			d.Type = "mixed"
 		}
 		d.Total += u.Total
 		d.Used += u.Used
