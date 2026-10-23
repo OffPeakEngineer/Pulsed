@@ -26,7 +26,7 @@ function orderOverviewCores() {
   document.getElementById("cluster-cores-empty").hidden = cores.length !== 0;
 }
 orderOverviewCores();
-document.addEventListener("DOMContentLoaded", orderOverviewCores);
+window.addEventListener("DOMContentLoaded", orderOverviewCores);
 document.addEventListener("change", (event) => {
   const select = event.target;
   if (select.id !== "core-order") return;

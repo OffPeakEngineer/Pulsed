@@ -9,8 +9,9 @@ function orderOverviewCores() {
     document.getElementById('cluster-cores-empty').hidden = cores.length !== 0;
 }
 orderOverviewCores();
-// The inline dashboard controller restores saved preferences at DOMContentLoaded.
-document.addEventListener('DOMContentLoaded', orderOverviewCores);
+// The inline controller restores saved preferences on window. A document
+// listener runs before that restoration as DOMContentLoaded bubbles upward.
+window.addEventListener('DOMContentLoaded', orderOverviewCores);
 document.addEventListener('change', event => {
     const select = event.target;
     if (select.id !== 'core-order')
